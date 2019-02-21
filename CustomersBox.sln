@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2016
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomersBox", "CustomersBox\CustomersBox.csproj", "{431497E9-513C-411E-BCA3-FAF8CE34DC6A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{431497E9-513C-411E-BCA3-FAF8CE34DC6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{431497E9-513C-411E-BCA3-FAF8CE34DC6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{431497E9-513C-411E-BCA3-FAF8CE34DC6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{431497E9-513C-411E-BCA3-FAF8CE34DC6A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {08E5D503-4858-4B3F-8BF5-47CBC895F35E}
+	EndGlobalSection
+EndGlobal
