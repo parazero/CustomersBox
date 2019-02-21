@@ -27,7 +27,7 @@ namespace CustomersBox
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             
         WrongInput:
-            Console.WriteLine(IsraelClock() + " Do you want to update the backup files before starting the program? ( Y \\ N )");
+            Console.WriteLine(IsraelClock() + " Do You want to update the backup files before starting the program? ( Y \\ N )");
             string InputFromUser = Console.ReadLine();
             if ((InputFromUser == "Y") || (InputFromUser == "y"))
                 UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
