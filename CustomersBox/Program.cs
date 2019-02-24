@@ -60,6 +60,7 @@ namespace CustomersBox
                     int NumOfTotalLogs = Directory.GetFiles(PhantomPath, "LOG_*", SearchOption.AllDirectories).Count();// the updated Logs count
                     if (Convert.ToInt32(ImportCustomersIDfromBackup1(backupDir_ID_TrigCount_NumOfLog)[2]) < NumOfTotalLogs)// Checks for new log
                     {
+                        Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
                         NewPYRO = CheckForNewPyroTriggerPerCustomer(backupDir_ID_TrigCount_NumOfLog, MailtoSend, backupDir_AccProblem, ExcelPath); 
                         NewAccProblem = CheckForNewAccelerometerProblem(backupDir_AccProblem, MailtoSend);
                     }
