@@ -200,6 +200,11 @@ namespace CustomersBox
                         x.Cells[i, 9].Font.Bold = true;
                         x.Cells[i, 9].Font.Underline = true;
                     }
+                    else
+                    {
+                        x.Cells[i, 9].Font.Bold = false;
+                        x.Cells[i, 9].Font.Underline = false;
+                    }
                 }
             }
             catch (Exception exception)
@@ -1040,7 +1045,6 @@ namespace CustomersBox
             UpdateBackupFile_1(SourcePath, BackupPath1);
             UpdateBackupFile_2(SourcePath, BackupPath2, BackupPath1);
             EditExcel(SourcePath, BackupPath2);
-            //BoldRowsWithAccelerometerProblem(SourcePath, BackupPath2);
             string CustomersCount = (CustomerPaths.Length).ToString();//number of customers
 
             string[] GeneralDataAboutCustomers = { CustomersCount, "" };
