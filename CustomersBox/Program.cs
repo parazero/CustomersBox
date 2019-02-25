@@ -45,8 +45,7 @@ namespace CustomersBox
             Console.WriteLine(IsraelClock() + " The program begins\n");
 
             ts1 = resetStopWatch1.Elapsed;
-
-            int NewCusTODAY = 0;
+            
             while (true)
             {
                 TimeZone localZone = TimeZone.CurrentTimeZone;
@@ -85,7 +84,7 @@ namespace CustomersBox
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
                 }
-                if (((currentHour==8) && ((currentMinute >= 0) && (currentMinute <= 15))) && UPdateTODAY)
+                if (((currentHour==0) && ((currentMinute >= 0) && (currentMinute <= 15))) && UPdateTODAY)
                 {
                     UPdateTODAY = false;
                     string[] DailyUpdateCustomers;
@@ -95,7 +94,7 @@ namespace CustomersBox
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
                     SendMailWithAttch(MailtoSend, "Daily update - SafeAir2 customers " + IsraelClock(), TextBodyMail, ExcelPath);
                 }
-                if ((((currentHour == 8) && (currentMinute > 15))) && !UPdateTODAY)
+                if ((((currentHour == 0) && (currentMinute > 15))) && !UPdateTODAY)
                 {
                     UPdateTODAY = true;
                 }
