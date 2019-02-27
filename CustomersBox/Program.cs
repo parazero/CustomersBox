@@ -9,7 +9,9 @@ using System.Diagnostics;
 using System.Threading;
 using System.Net.Mail;
 using System.Reflection;
+using System.IO.Compression;
 using Microsoft.Office.Interop.Excel;
+
 
 namespace CustomersBox
 {
@@ -26,17 +28,29 @@ namespace CustomersBox
             
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             
-        WrongInput:
+        WrongInput1:
             Console.WriteLine(IsraelClock() + " Do You want to update the backup files before starting the program? ( Y \\ N )");
-            string InputFromUser = Console.ReadLine();
-            if ((InputFromUser == "Y") || (InputFromUser == "y"))
+            string InputFromUser1 = Console.ReadLine();
+            if ((InputFromUser1 == "Y") || (InputFromUser1 == "y"))
                 UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
-            else if ((InputFromUser == "N") || (InputFromUser == "n")) { }
+            else if ((InputFromUser1 == "N") || (InputFromUser1 == "n")) { }
             else
             {
                 Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
                 Thread.Sleep(500);
-                goto WrongInput;
+                goto WrongInput1;
+            }
+        WrongInput2:
+            Console.WriteLine(IsraelClock() + " Would you like to get a summary of the accelerometer problems? ( Y \\ N )");
+            string InputFromUser2 = Console.ReadLine();
+            if ((InputFromUser2 == "Y") || (InputFromUser2 == "y"))
+                ExportAccleromterData(MailtoSend);
+            else if ((InputFromUser2 == "N") || (InputFromUser2 == "n")) { }
+            else
+            {
+                Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
+                Thread.Sleep(500);
+                goto WrongInput2;
             }
             Stopwatch resetStopWatch1 = new Stopwatch();
             resetStopWatch1.Start();
@@ -84,7 +98,7 @@ namespace CustomersBox
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
                 }
-                if (((currentHour==0) && ((currentMinute >= 0) && (currentMinute <= 15))) && UPdateTODAY)
+                if (((currentHour==0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)
                 {
                     UPdateTODAY = false;
                     string[] DailyUpdateCustomers;
@@ -94,11 +108,229 @@ namespace CustomersBox
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
                     SendMailWithAttch(MailtoSend, "Daily update - SafeAir2 customers " + IsraelClock(), TextBodyMail, ExcelPath);
                 }
-                if ((((currentHour == 0) && (currentMinute > 15))) && !UPdateTODAY)
+                if ((((currentHour == 0) && (currentMinute > 10))) && !UPdateTODAY)
                 {
                     UPdateTODAY = true;
                 }
             }
+        }
+        static void ExportAccleromterData(string[] MailtoSend)
+        {
+            string[] HeadersExcel = { "Drone Type", "Number of customers", "Total logs", "The minimum accelerometer value", "Number of logs with a accelerometer value lower than 2.5", "The log with the lowest accelerometer value" };
+            string Source = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Accelerometer Problem Summary.xlsx";
+            if (!System.IO.File.Exists(Source))
+            {
+                Console.WriteLine(IsraelClock() + " Create an excel file of the SA2 customers Accelerometer problems, at:\n" + Source + "\n");
+                Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
+                Microsoft.Office.Interop.Excel.Workbook sheet;
+                excel.Visible = false;
+                excel.DisplayAlerts = false;
+                sheet = excel.Workbooks.Add(Type.Missing);
+                sheet.SaveAs(Source);
+                sheet.Close();
+                if (excel != null)
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
+                if (sheet != null)
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
+                excel = null;
+                sheet = null;
+                excel = new Microsoft.Office.Interop.Excel.Application();
+                sheet = excel.Workbooks.Open(Source);
+                Microsoft.Office.Interop.Excel.Worksheet x1 = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+                excel.DefaultSheetDirection = (int)Excel.Constants.xlLTR; //define excel page left to right
+                x1.Range["A1:H1"].NumberFormat = "@";
+                x1.Range["A1:H" + x1.Rows.Count].NumberFormat = "@";
+                /* x1.Range["H2:H"+ x1.Rows.Count].NumberFormat = "dd/mm/yyyy";
+                x1.Range["I1:Z" + x1.Rows.Count].NumberFormat = "@"; */
+                x1.Range["A1:H" + x1.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                x1.Range["A1:H1"].EntireRow.Font.Bold = true;
+                sheet.Save();
+                sheet.Close();
+                if (excel != null)
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
+                if (sheet != null)
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
+                // Empty variables
+                excel = null;
+                sheet = null;
+                // Force garbage collector cleaning
+                GC.Collect();
+            }
+            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            int pathsize = PathSystemsName.Length;
+            double TotLogsUnderTheTH = 0;
+            double MinValueOfAcc= 100;
+            string[] dirsSystemsTypes = (Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly)).ToArray();
+            List<List<string>> Accelerometer = new List<List<string>>();
+            string PlatformType = "Unknown", NumOfTotalCustomersStr = "Unknown", NumOfTotalLogsSTR = "Unknown", MinValueOfAccSTR = " ", TotLogsUnderTheTH_STR= "Unknown";
+            string CsvWithLowestAccValue = "";
+            foreach (string dir in dirsSystemsTypes)
+            {
+                MinValueOfAcc = 100;
+                TotLogsUnderTheTH = 0;
+                if (System.IO.Directory.GetDirectories(dir).Length != 0)
+                {
+                    PlatformType = dir.Substring(pathsize, dir.Length - pathsize);//1. Drone type to excel
+                    int NumOfTotalCustomers = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly).Count();//2. Number of customers to excel
+                    string[] LogsPath = Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).ToArray();
+                    int NumOfTotalLogs = Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).Count();//4.total logs
+                    if (NumOfTotalLogs > 0)
+                    {
+                        foreach (string Log in LogsPath)
+                        {
+                            double[] tempValuefromfunc = AcceleometerProblemTH(Log);
+                            TotLogsUnderTheTH += tempValuefromfunc[1];//5. Number of logs with a accelerometer value lower than 2.5
+                            if (MinValueOfAcc > tempValuefromfunc[0])
+                            {
+                                MinValueOfAcc = tempValuefromfunc[0];//3. The minimum accelerometer value
+                                CsvWithLowestAccValue = Log;
+                            }
+                        }
+                    }
+                    NumOfTotalCustomersStr = NumOfTotalCustomers.ToString();
+                    if(MinValueOfAcc!=100)
+                        MinValueOfAccSTR = MinValueOfAcc.ToString();
+                    NumOfTotalLogsSTR = NumOfTotalLogs.ToString();
+                    TotLogsUnderTheTH_STR = TotLogsUnderTheTH.ToString();
+                    string[] TempData = { PlatformType, NumOfTotalCustomersStr, NumOfTotalLogsSTR, MinValueOfAccSTR, TotLogsUnderTheTH_STR, CsvWithLowestAccValue };
+                    Accelerometer.Add(TempData.ToList());
+                }
+                
+            }
+            Microsoft.Office.Interop.Excel.Application excel1 = new Microsoft.Office.Interop.Excel.Application();
+            Microsoft.Office.Interop.Excel.Workbook sheet1 = excel1.Workbooks.Open(Source);
+            Microsoft.Office.Interop.Excel.Worksheet x = excel1.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+            
+            int i1 = 0;
+            x.Cells.ClearContents();
+            foreach (string Header in HeadersExcel)
+            {
+                i1++;
+                x.Cells[1, i1] = Header;
+            }
+            for (int i = 0; i < Accelerometer.Count; i++)
+            {
+                int colCount = 0;
+                foreach (string str in Accelerometer[i])
+                {
+                    colCount++;
+                    x.Cells[i + 2, colCount] = str;
+                }
+
+            }
+            x.Columns.AutoFit();
+            sheet1.Save();
+            sheet1.Close();
+            if (excel1 != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel1);
+            if (sheet1 != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
+            // Empty variables
+            excel1 = null;
+            sheet1 = null;
+            // Force garbage collector cleaning
+            GC.Collect();
+
+            string sFileToZip = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem";
+            string sZipFile = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem.zip";
+            if (System.IO.File.Exists(sZipFile))
+            {
+                File.Delete(sZipFile);
+            }
+            try
+            {
+                ZipFile.CreateFromDirectory(sFileToZip, sZipFile);
+                string TextBodyMail = "\r\nSummary of problems with values of an accelerometer";
+                SendMailWithAttch(MailtoSend, "Accelerometer Summary " + IsraelClock(), TextBodyMail, sZipFile);
+            }
+            catch
+            {
+                Console.WriteLine("Problem with compress the folder");
+            }
+            
+
+
+
+        }
+        static double[] AcceleometerProblemTH(string CSVpath)
+        {
+            double LastValue = 0;
+            double NumberOfAccProblem = 0;
+            double AccMinValue = 9.8;
+            using (StreamReader sr = new StreamReader(CSVpath))
+            {
+                int AccProblem = 0;
+                int x1 = 7;
+                string line;
+                bool firstTime = false;
+                bool startAccData1 = false;
+                bool startAccData2 = false;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    string[] parts = line.Split(',');
+                    if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData1 &&!startAccData2)
+                    {
+                        firstTime = true;
+                        startAccData1 = true; startAccData2 = true;
+                        x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                    }
+                    try
+                    {
+                        if (line == "")
+                            continue;
+                        if (parts.Length < 7)
+                            continue;
+                    }
+                    catch { }
+                    if (firstTime)
+                    {
+                        try
+                        {
+                            LastValue = Convert.ToDouble(parts[x1]);
+                            firstTime = false;
+                        }
+                        catch { }
+                    }
+                    if (startAccData1)
+                    {
+                        try
+                        {
+                            if (Convert.ToDouble(parts[x1]) < 2.5)
+                                AccProblem++;
+                            if (AccProblem > 10)
+                            {
+                                string FolderDroneTypeName = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).Parent.Parent.Name;
+                                string FolderrCustomerName = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).Parent.Name;
+                                int SizePath = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).FullName.Length;
+                                string CsvFileName = CSVpath.Substring(SizePath, CSVpath.Length - SizePath);
+                                string PathToSaveLOG = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Logs\" + FolderDroneTypeName + "\\" + FolderrCustomerName + "\\";
+                                System.IO.Directory.CreateDirectory(PathToSaveLOG);
+                                File.Copy(CSVpath, PathToSaveLOG + CsvFileName);
+                                NumberOfAccProblem = 1;
+                                startAccData1 = false;
+                                
+                            }
+                            if (Convert.ToDouble(parts[x1]) > 2.5)
+                                AccProblem = 0;
+                        }
+                        catch { }
+                    }
+                    if (startAccData2)
+                    {
+                        try
+                        {
+                            double CurrentValue = Convert.ToDouble(parts[x1]);
+                            if (((CurrentValue < AccMinValue)&&(CurrentValue > 0))&&(Math.Abs(CurrentValue-LastValue)<2))
+                                AccMinValue = Convert.ToDouble(parts[x1]);
+                            LastValue = Convert.ToDouble(parts[x1]);
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            double[] ReturnData= { AccMinValue, NumberOfAccProblem };
+            return ReturnData;
         }
         static int DailyData (bool NewCustomer)
         {
@@ -150,13 +382,14 @@ namespace CustomersBox
             }
             else
             {
+                
                 if (BackupStr.Contains(date))
                 {
                     for (int i = BackupStringToParts.Length; i > 0; i++)
                     {
                         if (BackupStringToParts[i - 1].Contains(date))
                         {
-                            CountCustomerToday = ((BackupStringToParts[i - 1]).Split(','))[1];
+                            CountCustomerToday = ((BackupStringToParts[i - 2]).Split(','))[1];
                             countCustomerToday = Convert.ToInt32(CountCustomerToday);
                             //return countCustomerToday;
                             break;
@@ -178,6 +411,7 @@ namespace CustomersBox
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(Source);
             Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+            Excel.Range oRng;
             long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
             x.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
             int NumLog2 = 0;
@@ -206,10 +440,22 @@ namespace CustomersBox
                         x.Cells[i, 9].Font.Underline = false;
                     }
                 }
+                x.Range["H2:H"+ x.Rows.Count].NumberFormat = "DD/MM/YY";
+                oRng = (Excel.Range)x.Range["B2:j"+ LastRowofColA];
+                oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
+              oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
+                    Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
+                    Excel.XlYesNoGuess.xlGuess, Type.Missing, Type.Missing,
+                    Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers);
+
+
             }
             catch (Exception exception)
             {
-                Console.WriteLine("There was a PROBLEM with Backup file!");
+                Console.WriteLine("There was a PROBLEM with edit excel file!");
             }
             finally
             {
@@ -345,6 +591,7 @@ namespace CustomersBox
                                                         "\r\nType Drone: " + CusData[3] +
                                                         "\r\nFirmware version: " + CusData[4] +
                                                         "\r\nFirst Connaction at: " + CusData[5] +
+                                                        "\r\nLast Connaction at: " + CusData[6] +
                                                         "\r\n\nPath folder: " + CustomersPath[i];
                                                 SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
                                                 break;
@@ -411,6 +658,7 @@ namespace CustomersBox
                             "\r\nType Drone: " + CusData[3] +
                             "\r\nFirmware version: " + CusData[4] +
                             "\r\nFirst Connaction at: " + CusData[5] +
+                            "\r\nLast Connaction at: " + CusData[6] +
                             "\r\n\nPath folder: " + ID_ArrayFromBackup1[i];
                     SendMailWithAttch(MailtoSend, "Parachute opening detected " + IsraelClock(), TextBodyMail,LastLogWithPyro);
                     needUpdatesFile=true;
@@ -726,10 +974,23 @@ namespace CustomersBox
             string Firmware;
             string City = "";
             string Country = "";
+
             string PlatformType = new DirectoryInfo(System.IO.Path.GetDirectoryName(path)).Name;
             var CusINFO = new DirectoryInfo(path);
             string SerialNamber = CusINFO.Name;
-            string[] DatesLOGs = Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly).ToArray();
+            List<string> y = new List<string>();
+            List<string> x = new List<string>();
+            DirectoryInfo directoryInfo = new DirectoryInfo(path);
+            var results = directoryInfo.GetFiles("LOG*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList();
+            for (int i = 0; i < results.Count; i++)
+            {
+                x.Add(results[i].FullName.ToString());
+                y.Add(results[i].Directory.Name.ToString());
+            }
+            string[] Logs = x.ToArray();
+            string[] DatesLOGs = y.ToArray();
+
+            //string[] DatesLOGs = Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly).ToArray();
             string[] dateLOGs = DatesLOGs;
             if (DatesLOGs.Length == 0)
             {
@@ -748,8 +1009,9 @@ namespace CustomersBox
                 dateLOGs[k1] = new DirectoryInfo(DatesLOGs[k1]).Name;
                 dateLOGs[k1] = DatesLOGs[k1].Split('_').First();
             }
-            string DateConn = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
-            string[] Logs = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+            string FirstDateConn = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
+            string LastDateConn = dateLOGs[dateLOGs.Length-1].Replace('-', '/');// 6. Date of Last connection
+            //string[] Logs = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
             string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog = "";
             bool SMAtextOK = false, FWBool = true;
             for (int k1 = Logs.Length; k1 > 1; k1--)
@@ -793,7 +1055,7 @@ namespace CustomersBox
             {
                 Firmware = "unknown";
             }
-            string[] CustomerData = { SerialNamber, Country, City, PlatformType, Firmware, DateConn};
+            string[] CustomerData = { SerialNamber, Country, City, PlatformType, Firmware, FirstDateConn, LastDateConn };
             return CustomerData;
 
         }
@@ -820,10 +1082,13 @@ namespace CustomersBox
                 sheet = excel.Workbooks.Open(Source);
                 Microsoft.Office.Interop.Excel.Worksheet x1 = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
                 excel.DefaultSheetDirection = (int)Excel.Constants.xlLTR; //define excel page left to right
+                x1.Range["A1:Z1"].NumberFormat = "@";
                 x1.Range["A1:Z"+ x1.Rows.Count].NumberFormat = "@";
+                /* x1.Range["H2:H"+ x1.Rows.Count].NumberFormat = "dd/mm/yyyy";
+                x1.Range["I1:Z" + x1.Rows.Count].NumberFormat = "@"; */
                 x1.Range["A1:Z" + x1.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
                 x1.Range["A1:Z1"].EntireRow.Font.Bold = true;
-                //x1.Range["A1:Z100000"].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                
                 sheet.Save();
                 sheet.Close();
                 if (excel != null)
@@ -868,11 +1133,7 @@ namespace CustomersBox
 
             foreach (string dir in dirsSystemsTypes)//get phantom name (Phantom3, Phantom 4 Pro ...)
             {
-                if (System.IO.Directory.GetDirectories(dir).Length == 0)
-                {
-
-                }
-                else
+                if (System.IO.Directory.GetDirectories(dir).Length != 0)
                 {
                     temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
                     string[] tempstr = temp.ToArray();
@@ -899,11 +1160,25 @@ namespace CustomersBox
                     Numb++;
                     var CusINFO = new DirectoryInfo(xx[k]);
                     string SerialNamber = CusINFO.Name; // 2.SerialNumber
-                    string[] DatesLOGs = Directory.EnumerateDirectories(CustomersPath[i][k], "*", SearchOption.TopDirectoryOnly).ToArray();
+                    
+                    List<string> y = new List<string>();
+                    List<string> y1 = new List<string>();
+                    DirectoryInfo directoryInfo = new DirectoryInfo(CustomersPath[i][k]);
+                    var results = directoryInfo.GetFiles("LOG*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList();
+                    for (int s = 0; s < results.Count; s++)
+                    {
+                        y1.Add(results[s].FullName.ToString());
+                        y.Add(results[s].Directory.Name.ToString());
+                    }
+                    string[] Logs = y1.ToArray();
+                    string[] DatesLOGs = y.ToArray();
+
+
+                    //string[] DatesLOGs = Directory.EnumerateDirectories(CustomersPath[i][k], "*", SearchOption.TopDirectoryOnly).ToArray();
                     string[] dateLOGs = DatesLOGs;
                     if (DatesLOGs.Length == 0)
                     {
-                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "unknown", "unknown","0","" };
+                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "", "","0","" };
                         SerialNumberPath.Add(CusINFO.FullName);
                         CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
                         continue;
@@ -915,12 +1190,15 @@ namespace CustomersBox
                     }
                     string DateFirst = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
                     string DateLast = dateLOGs[DatesLOGs.Length - 1].Replace('-', '/'); //6. Date of first connection
+                    //DateFirst = DateFirst.Remove('0');
+                    if (DateLast.Substring(0,1).Contains("0"))
+                        DateLast = DateLast.Remove(0,1);
 
-                    string[] Logs = Directory.GetFiles(CustomersPath[i][k], "*", SearchOption.AllDirectories);
+                    //string[] Logs = Directory.GetFiles(CustomersPath[i][k], "*", SearchOption.AllDirectories);
 
                     string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog="";
                     TrigCount = 0;
-                    for (int k1 = Logs.Length; k1 > 1; k1--)
+                    for (int k1 = Logs.Length; k1 > 0; k1--)
                     {
                         TextFromLog = LoadCsvFile(Logs[k1 - 1]);
                         if (CheckPyroTrigLog(TextFromLog, Logs[k1 - 1].ToString()))
@@ -1009,6 +1287,10 @@ namespace CustomersBox
                     foreach (string str in CustomersSummary[i])
                     {
                         colCount++;
+                        if (colCount == 8)
+                        {
+                            x.Cells[i+2, colCount-1].NumberFormat = "DD/MM/YY";
+                        }
                         x.Cells[i + 2, colCount] = str;
                         if (colCount == 2)
                         {
@@ -1016,6 +1298,7 @@ namespace CustomersBox
                             r = x.Cells[i + 2, colCount];
                             x.Hyperlinks.Add(r, CustomerPaths[i], Type.Missing, str);
                         }
+                        
                     }
 
                 }
