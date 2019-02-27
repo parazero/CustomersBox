@@ -116,7 +116,7 @@ namespace CustomersBox
         }
         static void ExportAccleromterData(string[] MailtoSend)
         {
-            string[] HeadersExcel = { "Drone Type", "Number of customers", "Total logs", "The minimum accelerometer value", "Number of logs with a accelerometer value lower than 2.5", "The log with the lowest accelerometer value" };
+            string[] HeadersExcel = { "Drone Type", "Number of customers", "Total logs", "The minimum accelerometer value", "Number of logs with a accelerometer value lower than 2.5 for 10 continuous samples", "The log with the lowest accelerometer value" };
             string Source = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Accelerometer Problem Summary.xlsx";
             if (!System.IO.File.Exists(Source))
             {
@@ -301,11 +301,17 @@ namespace CustomersBox
                             {
                                 string FolderDroneTypeName = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).Parent.Parent.Name;
                                 string FolderrCustomerName = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).Parent.Name;
+                                string FolderrTimeName = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).Name;
                                 int SizePath = new DirectoryInfo(System.IO.Path.GetDirectoryName(CSVpath)).FullName.Length;
                                 string CsvFileName = CSVpath.Substring(SizePath, CSVpath.Length - SizePath);
-                                string PathToSaveLOG = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Logs\" + FolderDroneTypeName + "\\" + FolderrCustomerName + "\\";
+                                string PathToSaveLOG = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Logs\" + FolderDroneTypeName + "\\" + FolderrCustomerName + "\\"+FolderrTimeName+"\\";
                                 System.IO.Directory.CreateDirectory(PathToSaveLOG);
-                                File.Copy(CSVpath, PathToSaveLOG + CsvFileName);
+                                if (!System.IO.File.Exists(PathToSaveLOG + CsvFileName))
+                                    File.Copy(CSVpath, PathToSaveLOG + CsvFileName);
+                                else
+                                {
+
+                                }
                                 NumberOfAccProblem = 1;
                                 startAccData1 = false;
                                 
