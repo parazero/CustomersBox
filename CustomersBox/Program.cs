@@ -21,45 +21,63 @@ namespace CustomersBox
         {
             bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false;
             string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com" };
-            string ExcelPath = @"C:\Users\User\Documents\SafeAir2 customer summary.xlsx";
-            string backupDir_ID_TrigCount_NumOfLog = @"C:\Users\User\Documents\SafeAir2 customer summary BACKUP\BACKUP_ID_TrigCount_NumOfLog.txt";
-            string backupDir_AccProblem = @"C:\Users\User\Documents\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
+            string ExcelPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary.xlsx";
+            string backupDir_ID_TrigCount_NumOfLog = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_TrigCount_NumOfLog.txt";
+            string backupDir_AccProblem = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            
+            string PathToCopyGoodLogs = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogs\";
+            UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
+            //string TempPath = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogsTemp\";
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
-            
-        WrongInput1:
-            Console.WriteLine(IsraelClock() + " Do You want to update the backup files before starting the program? ( Y \\ N )");
-            string InputFromUser1 = Console.ReadLine();
-            if ((InputFromUser1 == "Y") || (InputFromUser1 == "y"))
-                UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
-            else if ((InputFromUser1 == "N") || (InputFromUser1 == "n")) { }
-            else
             {
-                Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
-                Thread.Sleep(500);
-                goto WrongInput1;
-            }
-        WrongInput2:
-            Console.WriteLine(IsraelClock() + " Would you like to get a summary of the accelerometer problems? ( Y \\ N )");
-            string InputFromUser2 = Console.ReadLine();
-            if ((InputFromUser2 == "Y") || (InputFromUser2 == "y"))
-                ExportAccleromterData(MailtoSend);
-            else if ((InputFromUser2 == "N") || (InputFromUser2 == "n")) { }
-            else
-            {
-                Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
-                Thread.Sleep(500);
-                goto WrongInput2;
+            WrongInput1:
+                Console.WriteLine(IsraelClock() + " Do You want to update the backup files before starting the program? ( Y \\ N )");
+                string InputFromUser1 = Console.ReadLine();
+                if ((InputFromUser1 == "Y") || (InputFromUser1 == "y"))
+                    UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
+                else if ((InputFromUser1 == "N") || (InputFromUser1 == "n")) { }
+                else
+                {
+                    Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
+                    Thread.Sleep(500);
+                    goto WrongInput1;
+                }
+            WrongInput2:
+                Console.WriteLine(IsraelClock() + " Would you like to get a summary of the accelerometer problems? ( Y \\ N )");
+                string InputFromUser2 = Console.ReadLine();
+                if ((InputFromUser2 == "Y") || (InputFromUser2 == "y"))
+                    ExportAccleromterData(MailtoSend);
+                else if ((InputFromUser2 == "N") || (InputFromUser2 == "n")) { }
+                else
+                {
+                    Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
+                    Thread.Sleep(500);
+                    goto WrongInput2;
+                }
+            WrongInput3:
+                Console.WriteLine(IsraelClock() + " Would you like to copy good logs into a separate folder? ( Y \\ N )");
+                string InputFromUser3 = Console.ReadLine();
+                if ((InputFromUser3 == "Y") || (InputFromUser3 == "y"))
+                {
+                    CopyLogsToFilter(PhantomPath, PathToCopyGoodLogs);
+                    FilterGoodLogs(PathToCopyGoodLogs, MailtoSend);
+                    //FilterGoodLogs(TempPath, MailtoSend);
+                    Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\n" + PathToCopyGoodLogs + "\n");
+                }
+                else if ((InputFromUser3 == "N") || (InputFromUser3 == "n")) { }
+                else
+                {
+                    Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
+                    Thread.Sleep(500);
+                    goto WrongInput3;
+                }
             }
             Stopwatch resetStopWatch1 = new Stopwatch();
             resetStopWatch1.Start();
             TimeSpan ts1 = resetStopWatch1.Elapsed;
 
             Console.WriteLine(IsraelClock() + " The program begins\n");
-
             ts1 = resetStopWatch1.Elapsed;
-            
             while (true)
             {
                 TimeZone localZone = TimeZone.CurrentTimeZone;
@@ -74,12 +92,12 @@ namespace CustomersBox
                     if (Convert.ToInt32(ImportCustomersIDfromBackup1(backupDir_ID_TrigCount_NumOfLog)[2]) < NumOfTotalLogs)// Checks for new log
                     {
                         Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
-                        NewPYRO = CheckForNewPyroTriggerPerCustomer(backupDir_ID_TrigCount_NumOfLog, MailtoSend, backupDir_AccProblem, ExcelPath); 
+                        NewPYRO = CheckForNewPyroTriggerPerCustomer(backupDir_ID_TrigCount_NumOfLog, MailtoSend, backupDir_AccProblem, ExcelPath);
                         NewAccProblem = CheckForNewAccelerometerProblem(backupDir_AccProblem, MailtoSend);
                     }
                     NewCUSTOMER = CheckForNewCustomers(Convert.ToInt32(ImportCustomersIDfromBackup1(backupDir_ID_TrigCount_NumOfLog)[1]), ImportCustomersIDfromBackup1(backupDir_ID_TrigCount_NumOfLog)[0], ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
                     if (NewCUSTOMER)
-                    { 
+                    {
                         Console.WriteLine(IsraelClock() + ": A new customer was detected, a mail was sent and the Excel file was updated");
                         DailyData(true);
                     }
@@ -89,7 +107,7 @@ namespace CustomersBox
                     if (NewAccProblem)
                         Console.WriteLine(IsraelClock() + ": A new log with an accelerometer problem was detected, mail sent and Excel file updated");
 
-                    if ((!NewCUSTOMER) &&(!NewPYRO) &&(!NewAccProblem))
+                    if ((!NewCUSTOMER) && (!NewPYRO) && (!NewAccProblem))
                         Console.WriteLine(IsraelClock() + ": ... No new updates");
 
                     resetStopWatch1.Restart();
@@ -98,11 +116,11 @@ namespace CustomersBox
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
                 }
-                if (((currentHour==0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)
+                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)
                 {
                     UPdateTODAY = false;
                     string[] DailyUpdateCustomers;
-                    DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog,backupDir_AccProblem);
+                    DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
                     Console.WriteLine(IsraelClock() + ": Daily Update!");
                     string TextBodyMail = "\r\nYesterday, " + DailyData(false) + " new customers were identidied" +
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
@@ -113,6 +131,150 @@ namespace CustomersBox
                     UPdateTODAY = true;
                 }
             }
+        }
+        static void CopyLogsToFilter(string SourcePath, string DestinationPath)
+        {
+            if (System.IO.Directory.Exists(DestinationPath))
+            {
+                Directory.Delete(DestinationPath, true);
+            }
+            System.IO.Directory.CreateDirectory(DestinationPath);
+            foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
+                Directory.CreateDirectory(dirPath.Replace(SourcePath, DestinationPath));
+
+            //Copy all the files & Replaces any files with the same name
+            foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
+                File.Copy(newPath, newPath.Replace(SourcePath, DestinationPath), true);
+        }
+        static void FilterGoodLogs(string dirCopyPath,string[] MailtoSend)
+        {
+            string[] LogsPath = Directory.GetFiles(dirCopyPath, "LOG_*", SearchOption.AllDirectories).ToArray();
+            foreach (string LogPath in LogsPath)
+            {
+                long length = new System.IO.FileInfo(LogPath).Length;
+                if (length<100000)
+                    File.Delete(LogPath);
+                else if (CheckIfDeleteLog(LogPath))
+                    File.Delete(LogPath);
+                string temPathDate =(new DirectoryInfo(LogPath)).Parent.FullName;
+                if (Directory.GetFiles(temPathDate, "LOG_*", SearchOption.AllDirectories).Count() == 0)
+                {
+                    Directory.Delete(temPathDate, true);
+                }
+                string temPathCustomer = (new DirectoryInfo(LogPath)).Parent.Parent.FullName;
+                if (Directory.GetFiles(temPathCustomer, "LOG_*", SearchOption.AllDirectories).Count() == 0)
+                {
+                    Directory.Delete(temPathCustomer, true);
+                }
+                
+            }
+            string[] dirsSystemsTypes = (Directory.EnumerateDirectories(dirCopyPath, "*", SearchOption.TopDirectoryOnly)).ToArray();
+            foreach (string dir in dirsSystemsTypes)
+            {
+                if (System.IO.Directory.GetDirectories(dir).Length == 0)
+                {
+                    Directory.Delete(dir,true);
+                }
+                else if (Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).Count()==0)
+                {
+                    Directory.Delete(dir,true);
+                }
+            }
+            string sZipFile = dirCopyPath.Substring(0,dirCopyPath.Length-1) + ".zip";
+            if (System.IO.File.Exists(sZipFile))
+            {
+                File.Delete(sZipFile);
+            }
+            try
+            {
+                ZipFile.CreateFromDirectory(dirCopyPath, sZipFile);
+                string TextBodyMail = "\r\nAttached";
+                SendMailWithAttch(MailtoSend, "All the good customer logs " + IsraelClock(), TextBodyMail, sZipFile);
+            }
+            catch
+            {
+                Console.WriteLine("Problem with compress the folder");
+            }
+
+        }
+        static bool[] checkAccANDnoFilghtLogs (string path)
+        {
+            bool DeleteByOnlyinitLOG = true, DeleteByfaultyAccelerometerLOG = false, firstTime = false;
+            int AccProblem = 0, WasFlying = 0;
+            int AccIndex = 7;
+            string line;
+            using (StreamReader sr = new StreamReader(path))
+            {
+                while ((line = sr.ReadLine()) != null)
+                {
+                    string[] parts = line.Split(',');
+                    if (parts.Contains("Absolute Acc.[m/s^2]"))
+                    {
+                        firstTime = true;
+                        AccIndex = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                    }
+                    try
+                    {
+                        if (line == "")
+                            continue;
+                        if (parts.Length < 7)
+                            continue;
+                    }
+                    catch { }
+                    if (firstTime)
+                    {
+                        if (DeleteByOnlyinitLOG)
+                        {
+                            if (WasFlying < 5)
+                            {
+                                try
+                                {
+                                    if (Convert.ToDouble(parts[AccIndex]) < 1000)
+                                        WasFlying++;
+                                }
+                                catch { }
+
+                            }
+                            else if (WasFlying >= 5)
+                            {
+                                DeleteByOnlyinitLOG = false;
+
+                            }
+                        }
+                        if (!DeleteByfaultyAccelerometerLOG)
+                        {
+                            try
+                            {
+                                if (Convert.ToDouble(parts[AccIndex]) <= 8)
+                                    AccProblem++;
+                                if (AccProblem > 50)
+                                {
+                                    DeleteByfaultyAccelerometerLOG = true;
+                                }
+                                if (Convert.ToDouble(parts[AccIndex]) > 8)
+                                    AccProblem = 0;
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+            bool[] BoolResults = { firstTime, DeleteByfaultyAccelerometerLOG, DeleteByOnlyinitLOG };
+            return BoolResults;
+        }
+        static bool CheckIfDeleteLog(string path)
+        {
+            bool DeleteByLowestBarometerLOG = false;
+            bool firstTime = checkAccANDnoFilghtLogs(path)[0];
+            bool DeleteByfaultyAccelerometerLOG = checkAccANDnoFilghtLogs(path)[1];
+            bool DeleteByOnlyinitLOG = checkAccANDnoFilghtLogs(path)[2];
+            if (firstTime&& !DeleteByfaultyAccelerometerLOG && !DeleteByOnlyinitLOG)
+            {
+                if (BarometerAVG(path)<3)
+                    DeleteByLowestBarometerLOG = true;
+            }
+            bool DeleteLOG = (DeleteByfaultyAccelerometerLOG || DeleteByOnlyinitLOG || DeleteByLowestBarometerLOG);
+            return DeleteLOG;
         }
         static void ExportAccleromterData(string[] MailtoSend)
         {
@@ -247,6 +409,90 @@ namespace CustomersBox
                 Console.WriteLine("Problem with compress the folder");
             }
 
+        }
+        static double BarometerAVG (string path)
+        {
+            bool firstTime = false;
+            int BaroIndex = 11;
+            string line;
+            List<double> Barovalue = new List<double>();
+            using (StreamReader sr = new StreamReader(path))
+            {
+                while ((line = sr.ReadLine()) != null)
+                {
+                    string[] parts = line.Split(',');
+                    if (parts.Contains("Barometer data altitude"))
+                    {
+                        firstTime = true;
+                        BaroIndex = Array.FindIndex(parts, row => row.Contains("Barometer data altitude"));
+                    }
+                    try
+                    {
+                        if (line == "")
+                            continue;
+                        if (parts.Length < 7)
+                            continue;
+                    }
+                    catch { }
+                    if (firstTime)
+                    {
+                        try
+                        {
+                            Barovalue.Add(Convert.ToDouble(parts[BaroIndex]));
+                        }
+                        catch { }
+                    }
+                }
+            }
+            double Average = 0;
+            try
+            {
+                Average = Barovalue.Average();
+            }
+            catch{ }
+            return Average;
+        }
+        static double AccelerometerAVG(string path)
+        {
+            bool firstTime = false;
+            int AccIndex = 7;
+            string line;
+            List<double> Accvalue = new List<double>();
+            using (StreamReader sr = new StreamReader(path))
+            {
+                while ((line = sr.ReadLine()) != null)
+                {
+                    string[] parts = line.Split(',');
+                    if (parts.Contains("Absolute Acc.[m/s^2]"))
+                    {
+                        firstTime = true;
+                        AccIndex = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                    }
+                    try
+                    {
+                        if (line == "")
+                            continue;
+                        if (parts.Length < 7)
+                            continue;
+                    }
+                    catch { }
+                    if (firstTime)
+                    {
+                        try
+                        {
+                            Accvalue.Add(Convert.ToDouble(parts[AccIndex]));
+                        }
+                        catch { }
+                    }
+                }
+            }
+            double Average = 0;
+            try
+            {
+                Average = Accvalue.Average();
+            }
+            catch { }
+            return Average;
         }
         static double[] AcceleometerProblemTH(string CSVpath)
         {
@@ -445,8 +691,8 @@ namespace CustomersBox
                         x.Cells[i, 9].Font.Underline = false;
                     }
                 }
-                x.Range["H2:H"+ x.Rows.Count].NumberFormat = "DD/MM/YY";
-                oRng = (Excel.Range)x.Range["B2:j"+ LastRowofColA];
+                //x.Range["H2:H"+ x.Rows.Count].NumberFormat = "DD/MM/YY";
+                oRng = (Excel.Range)x.Range["B2:L"+ LastRowofColA];
                 oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
               oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
                     Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
@@ -1129,7 +1375,8 @@ namespace CustomersBox
             List<string> SerialNumberStr = new List<string>();
             List<string> SerialNumberPath = new List<string>();
             List<string> HeadersExcel = new List<string>() { "#", "Serial Number","Platform type",
-                "Firmware version","Country", "City", "Date of first connection", "Date of last sync", "Trigger count", "Trigger reason"};
+                "Firmware version","Country", "City", "Date of first connection", "Date of last sync",
+                "Trigger count", "Trigger reason","Number of flights","Number of flights with bad logs"};
 
             int j = 0, CountCustomers = 0;
             string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
@@ -1151,6 +1398,7 @@ namespace CustomersBox
             Numb = 0;
             for (int i = 0; i < CustomersPath.Count; i++)
             {
+                int NumberFlights = 0, BadLog=0;
                 string Firmware;
                 string City = "";
                 string Country = "";
@@ -1165,7 +1413,14 @@ namespace CustomersBox
                     Numb++;
                     var CusINFO = new DirectoryInfo(xx[k]);
                     string SerialNamber = CusINFO.Name; // 2.SerialNumber
+
+                    //You'll remove a note if you'd like to investigate a specific customer
+                    if (SerialNamber== "002C00343037510B32363832") 
+                    {
+
+                    }
                     
+
                     List<string> y = new List<string>();
                     List<string> y1 = new List<string>();
                     DirectoryInfo directoryInfo = new DirectoryInfo(CustomersPath[i][k]);
@@ -1177,16 +1432,35 @@ namespace CustomersBox
                     }
                     string[] Logs = y1.ToArray();
                     string[] DatesLOGs = y.ToArray();
+                    
 
 
                     //string[] DatesLOGs = Directory.EnumerateDirectories(CustomersPath[i][k], "*", SearchOption.TopDirectoryOnly).ToArray();
                     string[] dateLOGs = DatesLOGs;
                     if (DatesLOGs.Length == 0)
                     {
-                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "", "","0","" };
+                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "", "","0","","","" };
                         SerialNumberPath.Add(CusINFO.FullName);
                         CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
                         continue;
+                    }
+                    NumberFlights = 0; BadLog = 0;
+                    for (int o = 0; o < Logs.Length; o++)
+                    {
+                        long length = new System.IO.FileInfo(Logs[o]).Length;
+                        if (length>100000)
+                        {
+                            if (BarometerAVG(Logs[o]) >= 3)
+                            {
+                                NumberFlights++;//Number of flights
+                                string TextLog = LoadCsvFile(Logs[o]);
+                                //if ((AccelerometerAVG(Logs[o]) < 8.4) && (!CheckPyroTrigLog(TextLog, Logs[o])))
+                                if (((checkAccANDnoFilghtLogs(Logs[o])[1]) || (AccelerometerAVG(Logs[o]) < 8.4)) && (!CheckPyroTrigLog(TextLog, Logs[o])))
+                                {
+                                    BadLog++;
+                                }
+                            }
+                        }
                     }
                     for (int k1 = 0; k1 < DatesLOGs.Length; k1++)
                     {
@@ -1265,7 +1539,9 @@ namespace CustomersBox
                         catch {  }
                     }
                     catch { Firmware = "unknown"; }
-                    string[] ExcelRow = { (Numb).ToString(), SerialNamber, PlatformType, Firmware, Country, City, DateFirst, DateLast, PyroOnCount.ToString(),TrigReason };//need to build counter from logs
+                    string[] ExcelRow = { (Numb).ToString(), SerialNamber, PlatformType, Firmware,
+                        Country, City, DateFirst, DateLast, PyroOnCount.ToString(),TrigReason,
+                        NumberFlights.ToString(),BadLog.ToString() };//need to build counter from logs
                     CustomersSummary.Add(ExcelRow.ToList());
                     SerialNumberStr.Add(SerialNamber);
                     SerialNumberPath.Add(CusINFO.FullName);
