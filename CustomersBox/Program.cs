@@ -26,8 +26,6 @@ namespace CustomersBox
             string backupDir_AccProblem = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyGoodLogs = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogs\";
-            //UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
-            //string TempPath = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogsTemp\";
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             {
             WrongInput1:
@@ -925,7 +923,7 @@ namespace CustomersBox
 
             return needUpdatesFile;
         }
-        private static void UpdateBackupFile_2(string SourcePath, string BackupPath2,string BackupPath1)
+        private static void UpdateBackupFile_2(string SourcePath, string BackupPath1,string BackupPath2)
         {
             int j = 0;
             List<string> temp = new List<string>(); // temporary list
@@ -1104,7 +1102,10 @@ namespace CustomersBox
                                     AccProblem++;
                                 if (AccProblem > 50)
                                 {
-                                    NumberOfAccProblem++;
+                                    if ((BarometerAVG(Logs[i]) >= 3) && (AccelerometerAVG(Logs[i]) < 8.401))
+                                    {
+                                        NumberOfAccProblem++;
+                                    }
                                     break;
                                 }
                                 if (Convert.ToDouble(parts[x1]) > 8)
@@ -1422,10 +1423,10 @@ namespace CustomersBox
                     string SerialNamber = CusINFO.Name; // 2.SerialNumber
 
                     //You'll remove a note if you'd like to investigate a specific customer
-                    if (SerialNamber== "002C00343037510B32363832") 
-                    {
+                    //if (SerialNamber== "002700363037510E32363832") 
+                    //{
 
-                    }
+                    //}
                     
 
                     List<string> y = new List<string>();
