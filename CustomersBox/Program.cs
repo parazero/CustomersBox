@@ -26,7 +26,7 @@ namespace CustomersBox
             string backupDir_AccProblem = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyGoodLogs = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogs\";
-            UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
+            //UpdateExcelFiles(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             //string TempPath = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogsTemp\";
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             {
