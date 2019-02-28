@@ -216,7 +216,6 @@ namespace CustomersBox
                     colCount++;
                     x.Cells[i + 2, colCount] = str;
                 }
-
             }
             x.Columns.AutoFit();
             sheet1.Save();
@@ -247,9 +246,6 @@ namespace CustomersBox
             {
                 Console.WriteLine("Problem with compress the folder");
             }
-            
-
-
 
         }
         static double[] AcceleometerProblemTH(string CSVpath)
@@ -360,6 +356,9 @@ namespace CustomersBox
             string[] BackupStringToParts = BackupList1.ToArray();
             string BackupStr = string.Join("\n", BackupStringToParts);
             string date = DateTime.Now.ToShortDateString();
+            var dateToday = DateTime.Now;
+            var Yesterday = dateToday.AddDays(-1);
+            string yesterday = Yesterday.ToShortDateString();
             if (NewCustomer)
             {
                 if (BackupStr.Contains(date))
@@ -389,13 +388,13 @@ namespace CustomersBox
             else
             {
                 
-                if (BackupStr.Contains(date))
+                if (BackupStr.Contains(yesterday))
                 {
-                    for (int i = BackupStringToParts.Length; i > 0; i++)
+                    for (int i = BackupStringToParts.Length; i > 0; i--)
                     {
-                        if (BackupStringToParts[i - 1].Contains(date))
+                        if (BackupStringToParts[i - 1].Contains(yesterday))
                         {
-                            CountCustomerToday = ((BackupStringToParts[i - 2]).Split(','))[1];
+                            CountCustomerToday = ((BackupStringToParts[i - 1]).Split(','))[1];
                             countCustomerToday = Convert.ToInt32(CountCustomerToday);
                             //return countCustomerToday;
                             break;
