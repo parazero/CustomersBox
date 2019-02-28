@@ -774,6 +774,7 @@ namespace CustomersBox
         }
         static bool CheckForNewAccelerometerProblem(string BackupPath2,string[] MailtoSend)
         {
+
             int TempAccProbValue_toList = 0, TempNumbOfLogsValue_toList = 0;
             bool needUpdatesFile = false;
             string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
@@ -810,51 +811,57 @@ namespace CustomersBox
                         bool startAccData = false;
                         for (int s = Logs.Length - 1; s > NumbOfListFromBackup1[i]; s--)
                         {
-
-                            using (StreamReader sr = new StreamReader(Logs[s]))
+                            long length = new System.IO.FileInfo(Logs[s]).Length;
+                            if (length > 100000)
                             {
-                                int AccProblem = 0;
-                                int x1 = 7;
-                                string line;
-                                startAccData = false;
-                                List<double> Acceleroometer = new List<double>();
-                                while ((line = sr.ReadLine()) != null)
+                                using (StreamReader sr = new StreamReader(Logs[s]))
                                 {
-                                    string[] parts = line.Split(',');
-                                    if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
+                                    int AccProblem = 0;
+                                    int x1 = 7;
+                                    string line;
+                                    startAccData = false;
+                                    List<double> Acceleroometer = new List<double>();
+                                    while ((line = sr.ReadLine()) != null)
                                     {
-                                        startAccData = true;
-                                        x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                                    }
-                                    if (startAccData)
-                                    {
-                                        try
+                                        string[] parts = line.Split(',');
+                                        if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
                                         {
-                                            if (Convert.ToDouble(parts[x1]) < 8)
-                                                AccProblem++;
-                                            if (AccProblem > 50)
+                                            startAccData = true;
+                                            x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                                        }
+                                        if (startAccData)
+                                        {
+                                            try
                                             {
-                                                needUpdatesFile = true;
-                                                string[] CusData = GetDataAboutNewCustomer(CustomersPath[i]);
-                                                string TextBodyMail = "\r\nThe value of the accelerometer was measured below 8 [m^2/s] for 50 continuous samples\n" + 
-                                                        "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
-                                                        "\r\nID: " + CusData[0] +
-                                                        "\r\nType Drone: " + CusData[3] +
-                                                        "\r\nFirmware version: " + CusData[4] +
-                                                        "\r\nFirst Connaction at: " + CusData[5] +
-                                                        "\r\nLast Connaction at: " + CusData[6] +
-                                                        "\r\n\nPath folder: " + CustomersPath[i];
-                                                SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
-                                                break;
+                                                if (Convert.ToDouble(parts[x1]) < 8)
+                                                    AccProblem++;
+                                                if (AccProblem > 50)
+                                                {
+                                                    needUpdatesFile = true;
+                                                    if ((BarometerAVG(Logs[s])>=3)&&(AccelerometerAVG(Logs[s])<8.401))
+                                                    {
+                                                        string[] CusData = GetDataAboutNewCustomer(CustomersPath[i]);
+                                                        string TextBodyMail = "\r\nThe value of the accelerometer was measured below 8 [m^2/s] for 50 continuous samples\n" +
+                                                                "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
+                                                                "\r\nID: " + CusData[0] +
+                                                                "\r\nType Drone: " + CusData[3] +
+                                                                "\r\nFirmware version: " + CusData[4] +
+                                                                "\r\nFirst Connaction at: " + CusData[5] +
+                                                                "\r\nLast Connaction at: " + CusData[6] +
+                                                                "\r\n\nPath folder: " + CustomersPath[i];
+                                                        SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
+                                                    }
+                                                    break;
+                                                }
+                                                if (Convert.ToDouble(parts[x1]) > 8)
+                                                    AccProblem = 0;
                                             }
-                                            if (Convert.ToDouble(parts[x1]) > 8)
-                                                AccProblem = 0;
-                                        }
-                                        catch
-                                        {
+                                            catch
+                                            {
+
+                                            }
 
                                         }
-
                                     }
                                 }
                             }
