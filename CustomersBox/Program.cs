@@ -823,7 +823,7 @@ namespace CustomersBox
                 try { TempNumbOfLogsValue_toList = Convert.ToInt32(GeneralCusData_Array[i].Split(',')[2]); } catch { TempNumbOfLogsValue_toList = 100000; }
                 NumbOfListFromBackup1.Add(TempNumbOfLogsValue_toList);
                 string[] dir = Directory.GetDirectories(PathSystemsName, ((GeneralCusData_Array[i].Split(',')[0]) + "*"), SearchOption.AllDirectories).ToArray();
-                CustomersPath.Add(dir[0]);
+                CustomersPath.Add(dir[i]);
             }
             for (int i=0;i<CustomersPath.Count; i++)
             {
