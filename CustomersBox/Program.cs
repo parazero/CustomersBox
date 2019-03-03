@@ -20,12 +20,13 @@ namespace CustomersBox
         static void Main(string[] args)
         {
             bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false;
-            string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com" };
+            string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com" };
             string ExcelPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary.xlsx";
             string backupDir_ID_TrigCount_NumOfLog = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_TrigCount_NumOfLog.txt";
             string backupDir_AccProblem = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyGoodLogs = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogs\";
+
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             {
             WrongInput1:
@@ -114,7 +115,7 @@ namespace CustomersBox
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
                 }
-                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)
+                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 20))) && UPdateTODAY)
                 {
                     UPdateTODAY = false;
                     string[] DailyUpdateCustomers;
@@ -122,13 +123,48 @@ namespace CustomersBox
                     Console.WriteLine(IsraelClock() + ": Daily Update!");
                     string TextBodyMail = "\r\nYesterday, " + DailyData(false) + " new customers were identidied" +
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
-                    SendMailWithAttch(MailtoSend, "Daily update - SafeAir2 customers " + IsraelClock(), TextBodyMail, ExcelPath);
+                    SendCopyExcel(MailtoSend, TextBodyMail,ExcelPath);
                 }
-                if ((((currentHour == 0) && (currentMinute > 10))) && !UPdateTODAY)
+                if ((((currentHour == 0) && (currentMinute > 20))) && !UPdateTODAY)
                 {
                     UPdateTODAY = true;
                 }
             }
+        }
+        static void SendCopyExcel (string[] MailtoSend,string TextBodyMail,string SourcePath)
+        {
+            string CopyExcelPath = @"C:\Users\User\Documents\SafeAir2 customer summary.xlsx";
+            if (File.Exists(CopyExcelPath))
+                File.Delete(CopyExcelPath);
+            File.Copy(SourcePath, CopyExcelPath);
+            Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
+            Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(CopyExcelPath);
+            Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+            Excel.Range oRng;
+            long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
+            oRng = (Excel.Range)x.Range["B2:L" + LastRowofColA];
+            oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
+          oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
+                Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
+                Excel.XlYesNoGuess.xlGuess, Type.Missing, Type.Missing,
+                Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
+                Excel.XlSortDataOption.xlSortTextAsNumbers,
+                Excel.XlSortDataOption.xlSortTextAsNumbers,
+                Excel.XlSortDataOption.xlSortTextAsNumbers);
+            sheet1.Save();
+            excel.Quit();
+            if (excel != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
+            if (sheet1 != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
+            // Empty variables
+            excel = null;
+            sheet1 = null;
+            // Force garbage collector cleaning
+            GC.Collect();
+            SendMailWithAttch(MailtoSend, "Daily update - SafeAir2 customers " + IsraelClock(), TextBodyMail, CopyExcelPath);
+            Thread.Sleep(1000);
+            //File.Delete(CopyExcelPath);
         }
         static void CopyLogsToFilter(string SourcePath, string DestinationPath)
         {
@@ -660,7 +696,7 @@ namespace CustomersBox
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(Source);
             Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-            Excel.Range oRng;
+            //Excel.Range oRng;
             long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
             x.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
             int NumLog2 = 0;
@@ -690,6 +726,7 @@ namespace CustomersBox
                     }
                 }
                 //x.Range["H2:H"+ x.Rows.Count].NumberFormat = "DD/MM/YY";
+                /*
                 oRng = (Excel.Range)x.Range["B2:L"+ LastRowofColA];
                 oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
               oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
@@ -698,9 +735,7 @@ namespace CustomersBox
                     Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
                     Excel.XlSortDataOption.xlSortTextAsNumbers,
                     Excel.XlSortDataOption.xlSortTextAsNumbers,
-                    Excel.XlSortDataOption.xlSortTextAsNumbers);
-
-
+                    Excel.XlSortDataOption.xlSortTextAsNumbers);*/
             }
             catch (Exception exception)
             {
@@ -847,7 +882,7 @@ namespace CustomersBox
                                                                 "\r\nFirst Connaction at: " + CusData[5] +
                                                                 "\r\nLast Connaction at: " + CusData[6] +
                                                                 "\r\n\nPath folder: " + CustomersPath[i];
-                                                        SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
+                                                        //SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
                                                     }
                                                     break;
                                                 }
@@ -923,7 +958,7 @@ namespace CustomersBox
 
             return needUpdatesFile;
         }
-        private static void UpdateBackupFile_2(string SourcePath, string BackupPath1,string BackupPath2)
+        private static void UpdateBackupFile_2(string SourcePath, string BackupPath2,string BackupPath1)
         {
             int j = 0;
             List<string> temp = new List<string>(); // temporary list
@@ -1078,44 +1113,47 @@ namespace CustomersBox
             string[] Logs= x.ToArray();
             for (int i = Logs.Length - 1; i > endFor; i--)
             {
-
-                using (StreamReader sr = new StreamReader(Logs[i]))
+                long length = new System.IO.FileInfo(Logs[i]).Length;
+                if (length > 100000)
                 {
-                    int AccProblem = 0;
-                    int x1 = 7;
-                    string line;
-                    startAccData = false;
-                    List<double> Acceleroometer = new List<double>();
-                    while ((line = sr.ReadLine()) != null)
+                    using (StreamReader sr = new StreamReader(Logs[i]))
                     {
-                        string[] parts = line.Split(',');
-                        if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
+                        int AccProblem = 0;
+                        int x1 = 7;
+                        string line;
+                        startAccData = false;
+                        List<double> Acceleroometer = new List<double>();
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            startAccData = true;
-                            x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                        }
-                        if (startAccData)
-                        {
-                            try
+                            string[] parts = line.Split(',');
+                            if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
                             {
-                                if (Convert.ToDouble(parts[x1]) < 8)
-                                    AccProblem++;
-                                if (AccProblem > 50)
+                                startAccData = true;
+                                x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                            }
+                            if (startAccData)
+                            {
+                                try
                                 {
-                                    if ((BarometerAVG(Logs[i]) >= 3) && (AccelerometerAVG(Logs[i]) < 8.401))
+                                    if (Convert.ToDouble(parts[x1]) < 8)
+                                        AccProblem++;
+                                    if (AccProblem > 50)
                                     {
-                                        NumberOfAccProblem++;
+                                        if ((BarometerAVG(Logs[i]) >= 3) && (AccelerometerAVG(Logs[i]) < 8.401))
+                                        {
+                                            NumberOfAccProblem++;
+                                        }
+                                        break;
                                     }
-                                    break;
+                                    if (Convert.ToDouble(parts[x1]) > 8)
+                                        AccProblem = 0;
                                 }
-                                if (Convert.ToDouble(parts[x1]) > 8)
-                                    AccProblem = 0;
-                            }
-                            catch
-                            {
+                                catch
+                                {
+
+                                }
 
                             }
-
                         }
                     }
                 }
@@ -1560,7 +1598,7 @@ namespace CustomersBox
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(SourcePath);
             Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-
+            //Excel.Range oRng;
             try
             {
                 int i1 = 0;
@@ -1591,6 +1629,18 @@ namespace CustomersBox
                     }
 
                 }
+                /*
+                long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
+                oRng = (Excel.Range)x.Range["B2:L" + LastRowofColA];
+                oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
+              oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
+                    Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
+                    Excel.XlYesNoGuess.xlGuess, Type.Missing, Type.Missing,
+                    Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers,
+                    Excel.XlSortDataOption.xlSortTextAsNumbers);
+                    */
             }
             catch (Exception exception)
             {
@@ -1612,7 +1662,7 @@ namespace CustomersBox
                 // Force garbage collector cleaning
                 GC.Collect();
             }
-            
+
             
             UpdateBackupFile_1(SourcePath, BackupPath1);
             UpdateBackupFile_2(SourcePath, BackupPath2, BackupPath1);
