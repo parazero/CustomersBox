@@ -66,9 +66,13 @@ namespace CustomersBox
 
                     //FilterGoodLogs(PathToCopyGoodLogs, MailtoSend);
                     FilterLogs(PathToCopyLogs, FolderTofilter);
-
-                    Directory.Delete(PathToCopyLogs,true);
-                    Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\n" + PathToCopyLogs + "\n");
+                    try
+                    {
+                        Directory.Delete(PathToCopyLogs, true);
+                    }
+                    catch { }
+                    
+                    Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\nC:\\Users\\User\\Documents\\Analayzed Customers box\\Sorting Logs\n");
                 }
                 else if ((InputFromUser3 == "N") || (InputFromUser3 == "n")) { }
                 else
@@ -140,6 +144,33 @@ namespace CustomersBox
         }
         static void FilterLogs(string dirCopyPath,string[] FolderFiltered)//
         {
+
+            int SamplingResolution;
+            double AccAverageTH;
+        WrongInput1:
+            Console.WriteLine(IsraelClock() + " Enter sample resolution (each 50 samples are one second)");
+            string InputFromUser1 = Console.ReadLine();
+            try
+            {
+                SamplingResolution = Convert.ToInt32(InputFromUser1);
+            }
+            catch
+            {
+                Console.WriteLine(IsraelClock() + "Please insert only! number\n");
+                goto WrongInput1;
+            }
+        WrongInput2:
+            Console.WriteLine(IsraelClock() + " Enter a minimum threshold value for the average acceleration");
+            string InputFromUser2 = Console.ReadLine();
+            try
+            {
+                AccAverageTH = Convert.ToDouble(InputFromUser2);
+            }
+            catch
+            {
+                Console.WriteLine(IsraelClock() + "Please insert only! number\n");
+                goto WrongInput2;
+            }
             int T = 0;
             string lastDir="";
             string[] LogsPath = Directory.GetFiles(dirCopyPath, "LOG_*", SearchOption.AllDirectories).ToArray();
@@ -155,7 +186,7 @@ namespace CustomersBox
                     MoveFile(LogPath, FolderFiltered[2],T);//move to pyro on folder
                 else
                 {
-                    if (CheckForFaultyLogs(LogPath))
+                    if (CheckForFaultyLogs(LogPath,SamplingResolution,AccAverageTH))
                         MoveFile(LogPath, FolderFiltered[0],T);//move to FaultyFlight_NoTrigger folder
                     else
                         MoveFile(LogPath, FolderFiltered[1],T);//move to GoodFlight_NoTrigger folder
@@ -218,6 +249,9 @@ namespace CustomersBox
             foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
                 Directory.CreateDirectory(dirPath.Replace(SourcePath, DestinationPath));
 
+            string temPathCustomer = (new DirectoryInfo(NewFolders[0])).Parent.FullName;
+            if (System.IO.Directory.Exists(temPathCustomer))
+                Directory.Delete(temPathCustomer, true);
             foreach (string NewFolder in NewFolders)
             {
                 if (System.IO.Directory.Exists(NewFolder))
@@ -281,7 +315,7 @@ namespace CustomersBox
             }
 
         }
-        static bool CheckForFaultyLogs(string path)
+        static bool CheckForFaultyLogs(string path,int SamplingResolution,double AccAverageTH)
         {
             List<double> AccValues = new List<double>();
             List<double> BaroValues = new List<double>();
@@ -315,8 +349,6 @@ namespace CustomersBox
 
                 }
             }
-            int SamplingResolution = 150;
-            double AccAverageTH = 8;
             double BaroMax = 0;
             double BaroMin = 0;
             for (int i = SamplingResolution - 1; (!FaultyLog) && (i < AccValues.Count); i++)
