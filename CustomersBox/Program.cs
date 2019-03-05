@@ -25,7 +25,7 @@ namespace CustomersBox
             string backupDir_ID_TrigCount_NumOfLog = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_TrigCount_NumOfLog.txt";
             string backupDir_AccProblem = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_AccelerometerProblemCount_NumOfLog.txt";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            string PathToCopyGoodLogs = @"C:\Users\User\Documents\Analayzed Customers box\FilterGoodLogs\";
+            string PathToCopyLogs = @"C:\Users\User\Documents\Analayzed Customers box\TempFolder\";
 
             CreateFilesIfNotExits(ExcelPath, backupDir_ID_TrigCount_NumOfLog, backupDir_AccProblem);
             {
@@ -58,10 +58,17 @@ namespace CustomersBox
                 string InputFromUser3 = Console.ReadLine();
                 if ((InputFromUser3 == "Y") || (InputFromUser3 == "y"))
                 {
-                    CopyLogsToFilter(PhantomPath, PathToCopyGoodLogs);
-                    FilterGoodLogs(PathToCopyGoodLogs, MailtoSend);
-                    //FilterGoodLogs(TempPath, MailtoSend);
-                    Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\n" + PathToCopyGoodLogs + "\n");
+                    string[] FolderTofilter = { @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\FaultyFlight_NoTrigger",
+                                    @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\GoodFlight_NoTrigger",
+                                    @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\FlightWithTrigger"};
+
+                    CopyLogsToFilter(PhantomPath, PathToCopyLogs, FolderTofilter);
+
+                    //FilterGoodLogs(PathToCopyGoodLogs, MailtoSend);
+                    FilterLogs(PathToCopyLogs, FolderTofilter);
+
+                    Directory.Delete(PathToCopyLogs,true);
+                    Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\n" + PathToCopyLogs + "\n");
                 }
                 else if ((InputFromUser3 == "N") || (InputFromUser3 == "n")) { }
                 else
@@ -131,6 +138,41 @@ namespace CustomersBox
                 }
             }
         }
+        static void FilterLogs(string dirCopyPath,string[] FolderFiltered)//
+        {
+            int T = 0;
+            string lastDir="";
+            string[] LogsPath = Directory.GetFiles(dirCopyPath, "LOG_*", SearchOption.AllDirectories).ToArray();
+            foreach (string LogPath in LogsPath)
+            {
+                lastDir = LogPath;
+                T++;
+                Thread.Sleep(100);
+                long length = new System.IO.FileInfo(LogPath).Length;
+                if ((length < 100000) || (BarometerAVG(LogPath) < 3))//delete log if no flight
+                    File.Delete(LogPath);
+                else if (LoadCsvFile(LogPath).Contains("!SWITCHED PYRO on!"))
+                    MoveFile(LogPath, FolderFiltered[2],T);//move to pyro on folder
+                else
+                {
+                    if (CheckForFaultyLogs(LogPath))
+                        MoveFile(LogPath, FolderFiltered[0],T);//move to FaultyFlight_NoTrigger folder
+                    else
+                        MoveFile(LogPath, FolderFiltered[1],T);//move to GoodFlight_NoTrigger folder
+                }
+            }
+            File.Delete(lastDir);
+        }
+        static void MoveFile (string SourcePath, string MoveToPath,int T)
+        {
+            int sizePath = (new DirectoryInfo(SourcePath)).Parent.Parent.Parent.Parent.FullName.Length;
+            string temp = SourcePath.Substring(sizePath,SourcePath.Length-sizePath);
+            MoveToPath = MoveToPath  + temp;
+            string FolderPath = (new DirectoryInfo(MoveToPath)).Parent.FullName;
+            System.IO.Directory.CreateDirectory(FolderPath);
+            //Thread.Sleep(1000);
+            File.Copy(SourcePath, MoveToPath);
+        }
         static void SendCopyExcel (string[] MailtoSend,string TextBodyMail,string SourcePath)
         {
             string CopyExcelPath = @"C:\Users\User\Documents\SafeAir2 customer summary.xlsx";
@@ -166,15 +208,23 @@ namespace CustomersBox
             Thread.Sleep(1000);
             //File.Delete(CopyExcelPath);
         }
-        static void CopyLogsToFilter(string SourcePath, string DestinationPath)
+        static void CopyLogsToFilter(string SourcePath, string DestinationPath,string[] NewFolders)
         {
             if (System.IO.Directory.Exists(DestinationPath))
-            {
                 Directory.Delete(DestinationPath, true);
-            }
+            
             System.IO.Directory.CreateDirectory(DestinationPath);
+
             foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
                 Directory.CreateDirectory(dirPath.Replace(SourcePath, DestinationPath));
+
+            foreach (string NewFolder in NewFolders)
+            {
+                if (System.IO.Directory.Exists(NewFolder))
+                    Directory.Delete(NewFolder, true);
+                System.IO.Directory.CreateDirectory(NewFolder);
+            }
+                
 
             //Copy all the files & Replaces any files with the same name
             foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
@@ -231,10 +281,63 @@ namespace CustomersBox
             }
 
         }
-        static bool[] checkAccANDnoFilghtLogs (string path)
+        static bool CheckForFaultyLogs(string path)
         {
-            bool DeleteByOnlyinitLOG = true, DeleteByfaultyAccelerometerLOG = false, firstTime = false;
-            int AccProblem = 0, WasFlying = 0;
+            List<double> AccValues = new List<double>();
+            List<double> BaroValues = new List<double>();
+            bool firstTime = false, FaultyLog = false;
+            int AccIndex = 7, BaroIndex = 11;
+            string FileLog = LoadCsvFile(path);
+            string[] FileLogParts = FileLog.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < FileLogParts.Length; i++)
+            {
+                string[] parts = FileLogParts[i].Split(',');
+                if ((parts.Contains("Absolute Acc.[m/s^2]")|| parts.Contains("Barometer data altitude"))&&!firstTime)
+                {
+                    firstTime = true;
+                    AccIndex = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
+                    BaroIndex = Array.FindIndex(parts, row => row.Contains("Barometer data altitude"));
+                }
+                else if (firstTime)
+                {
+                    try
+                    {
+                        AccValues.Add(Convert.ToDouble(parts[AccIndex]));
+                        BaroValues.Add(Convert.ToDouble(parts[BaroIndex]));
+                    }
+                    catch
+                    {
+                        if (AccValues.Count > BaroValues.Count)
+                            AccValues.RemoveAt(AccValues.Count - 1);
+                        else if (AccValues.Count < BaroValues.Count)
+                            BaroValues.RemoveAt(BaroValues.Count - 1);
+                    }
+
+                }
+            }
+            int SamplingResolution = 150;
+            double AccAverageTH = 8;
+            double BaroMax = 0;
+            double BaroMin = 0;
+            for (int i = SamplingResolution - 1; (!FaultyLog) && (i < AccValues.Count); i++)
+            {
+                BaroMax = BaroValues.GetRange(i - (SamplingResolution - 1), SamplingResolution).Max();
+                BaroMin = BaroValues.GetRange(i - (SamplingResolution - 1), SamplingResolution).Min();
+                if (Math.Abs(BaroMax - BaroMin) < 2)
+                {
+                    double AccAVG = AccValues.GetRange(i - (SamplingResolution - 1), SamplingResolution).Average();
+                    if (AccAVG < AccAverageTH)
+                    {
+                        FaultyLog = true;
+                    }
+                }
+            }
+            return FaultyLog;
+        }
+        static bool[] CheckAccAndNoFilghtLogs (string path)
+        {
+            bool  DeleteByfaultyAccelerometerLOG = false, firstTime = false;
+            int AccProblem = 0;
             int AccIndex = 7;
             string line;
             using (StreamReader sr = new StreamReader(path))
@@ -257,24 +360,6 @@ namespace CustomersBox
                     catch { }
                     if (firstTime)
                     {
-                        if (DeleteByOnlyinitLOG)
-                        {
-                            if (WasFlying < 5)
-                            {
-                                try
-                                {
-                                    if (Convert.ToDouble(parts[AccIndex]) < 1000)
-                                        WasFlying++;
-                                }
-                                catch { }
-
-                            }
-                            else if (WasFlying >= 5)
-                            {
-                                DeleteByOnlyinitLOG = false;
-
-                            }
-                        }
                         if (!DeleteByfaultyAccelerometerLOG)
                         {
                             try
@@ -292,22 +377,33 @@ namespace CustomersBox
                         }
                     }
                 }
+                
             }
-            bool[] BoolResults = { firstTime, DeleteByfaultyAccelerometerLOG, DeleteByOnlyinitLOG };
+            bool[] BoolResults = { firstTime, DeleteByfaultyAccelerometerLOG};
             return BoolResults;
+        }
+        static bool CheckLogStatus(string path)
+        {
+
+            bool[] Temp = CheckAccAndNoFilghtLogs(path);
+            //bool firstTime = Temp[0];
+            bool DeleteByfaultyAccelerometerLOG = Temp[1];
+
+            bool StatusLog = (DeleteByfaultyAccelerometerLOG);
+            return StatusLog;
         }
         static bool CheckIfDeleteLog(string path)
         {
             bool DeleteByLowestBarometerLOG = false;
-            bool firstTime = checkAccANDnoFilghtLogs(path)[0];
-            bool DeleteByfaultyAccelerometerLOG = checkAccANDnoFilghtLogs(path)[1];
-            bool DeleteByOnlyinitLOG = checkAccANDnoFilghtLogs(path)[2];
-            if (firstTime&& !DeleteByfaultyAccelerometerLOG && !DeleteByOnlyinitLOG)
+            bool[] Temp = CheckAccAndNoFilghtLogs(path);
+            bool firstTime = Temp[0];
+            bool DeleteByfaultyAccelerometerLOG = Temp[1];
+            if (firstTime&& !DeleteByfaultyAccelerometerLOG )
             {
                 if (BarometerAVG(path)<3)
                     DeleteByLowestBarometerLOG = true;
             }
-            bool DeleteLOG = (DeleteByfaultyAccelerometerLOG || DeleteByOnlyinitLOG || DeleteByLowestBarometerLOG);
+            bool DeleteLOG = (DeleteByfaultyAccelerometerLOG  || DeleteByLowestBarometerLOG);
             return DeleteLOG;
         }
         static void ExportAccleromterData(string[] MailtoSend)
@@ -618,7 +714,7 @@ namespace CustomersBox
         {
             string CountCustomerToday = "";
             int countCustomerToday = 0;
-            string BackupPath = @"C:\Users\User\Documents\SafeAir2 customer summary BACKUP\BACKUP_Daily status.txt";
+            string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_Daily status.txt";
             if (!System.IO.File.Exists(BackupPath))
             {
                 int NameIndex = BackupPath.IndexOf("BACKUP_");
@@ -823,7 +919,7 @@ namespace CustomersBox
                 try { TempNumbOfLogsValue_toList = Convert.ToInt32(GeneralCusData_Array[i].Split(',')[2]); } catch { TempNumbOfLogsValue_toList = 100000; }
                 NumbOfListFromBackup1.Add(TempNumbOfLogsValue_toList);
                 string[] dir = Directory.GetDirectories(PathSystemsName, ((GeneralCusData_Array[i].Split(',')[0]) + "*"), SearchOption.AllDirectories).ToArray();
-                CustomersPath.Add(dir[i]);
+                CustomersPath.Add(dir[0]);
             }
             for (int i=0;i<CustomersPath.Count; i++)
             {
@@ -1501,7 +1597,7 @@ namespace CustomersBox
                                 NumberFlights++;//Number of flights
                                 string TextLog = LoadCsvFile(Logs[o]);
                                 //if ((AccelerometerAVG(Logs[o]) < 8.4) && (!CheckPyroTrigLog(TextLog, Logs[o])))
-                                if (((checkAccANDnoFilghtLogs(Logs[o])[1]) || (AccelerometerAVG(Logs[o]) < 8.4)) && (!CheckPyroTrigLog(TextLog, Logs[o])))
+                                if (((CheckAccAndNoFilghtLogs(Logs[o])[1]) || (AccelerometerAVG(Logs[o]) < 8.4)) && (!CheckPyroTrigLog(TextLog, Logs[o])))
                                 {
                                     BadLog++;
                                 }
