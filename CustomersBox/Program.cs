@@ -132,7 +132,7 @@ namespace CustomersBox
                     UPdateTODAY = false;
                     string[] DailyUpdateCustomers;
                     DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
-                    Console.WriteLine(IsraelClock() + ": Daily Update!");
+                    Console.WriteLine(IsraelClock() + ": Daily Update!");//
                     string TextBodyMail = "\r\nYesterday, " + DailyData(false) + " new customers were identidied" +
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
                     SendCopyExcel(MailtoSend, TextBodyMail,ExcelPath);
