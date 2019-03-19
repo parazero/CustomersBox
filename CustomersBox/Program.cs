@@ -20,14 +20,12 @@ namespace CustomersBox
         static void Main(string[] args)
         {
             bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false;
-            string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com" };
+            string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com", "nadavk@parazero.com", "avil@parazero.com" };
             string ExcelPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary.xlsx";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyLogs = @"C:\Users\User\Documents\Analayzed Customers box\TempFolder\";
             string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_NumOfLog.txt";
-           
             CreateFilesIfNotExits(ExcelPath, BackupPath, PhantomPath);
-            
             {
             WrongInput1:
                 Console.WriteLine(IsraelClock() + " Do You want to update the backup files before starting the program? ( Y \\ N )");
@@ -41,56 +39,48 @@ namespace CustomersBox
                     Thread.Sleep(500);
                     goto WrongInput1;
                 }
-                
-            /*WrongInput2:
-                Console.WriteLine(IsraelClock() + " Would you like to get a summary of the accelerometer problems? ( Y \\ N )");
+            WrongInput2:
+                Console.WriteLine(IsraelClock() + " Would you like to copy good logs into a separate folder? ( Y \\ N )");
                 string InputFromUser2 = Console.ReadLine();
                 if ((InputFromUser2 == "Y") || (InputFromUser2 == "y"))
-                    ExportAccleromterData(MailtoSend);
-                else if ((InputFromUser2 == "N") || (InputFromUser2 == "n")) { }
-                else
-                {
-                    Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
-                    Thread.Sleep(500);
-                    goto WrongInput2;
-                }*/
-            WrongInput3:
-                Console.WriteLine(IsraelClock() + " Would you like to copy good logs into a separate folder? ( Y \\ N )");
-                string InputFromUser3 = Console.ReadLine();
-                if ((InputFromUser3 == "Y") || (InputFromUser3 == "y"))
                 {
                     string[] FolderTofilter = { @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\FaultyFlight_NoTrigger",
                                     @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\GoodFlight_NoTrigger",
                                     @"C:\Users\User\Documents\Analayzed Customers box\Sorting Logs\FlightWithTrigger"};
 
                     CopyLogsToFilter(PhantomPath, PathToCopyLogs, FolderTofilter);
-
-                    //FilterGoodLogs(PathToCopyGoodLogs, MailtoSend);
                     FilterLogs(PathToCopyLogs, FolderTofilter);
                     try
                     {
                         Directory.Delete(PathToCopyLogs, true);
                     }
                     catch { }
-                    
                     Console.WriteLine(IsraelClock() + "The folder with the good logs is located at:\nC:\\Users\\User\\Documents\\Analayzed Customers box\\Sorting Logs\n");
                 }
-                else if ((InputFromUser3 == "N") || (InputFromUser3 == "n")) { }
+                else if ((InputFromUser2 == "N") || (InputFromUser2 == "n")) { }
                 else
                 {
                     Console.WriteLine(IsraelClock() + " Please insert only! 'Y'(Yes) or 'N'(No)\n");
                     Thread.Sleep(500);
-                    goto WrongInput3;
+                    goto WrongInput2;
                 }
             }
             Stopwatch resetStopWatch1 = new Stopwatch();
             resetStopWatch1.Start();
             TimeSpan ts1 = resetStopWatch1.Elapsed;
-
             Console.WriteLine(IsraelClock() + " The program begins\n");
             ts1 = resetStopWatch1.Elapsed;
-            while (true)
+            
+            while (true)//A program that runs indefinitely.
             {
+                /*
+             * A program that runs indefinitely.
+             * Every 3 minutes the program checks status:
+             *** Checks whether there is a new log and if it is fails.
+             *** Checks whether a new parachute activity has been detected.
+             *** Checking if a new customer has been identified in the box.
+             * Send daily status to the mailing list, every day at midnight.
+             */
                 TimeZone localZone = TimeZone.CurrentTimeZone;
                 DateTime local = localZone.ToLocalTime(DateTime.Now);
                 int currentHour = local.Hour;
@@ -99,18 +89,18 @@ namespace CustomersBox
                 if (ts1.TotalMinutes >= 3)
                 {
                     Console.WriteLine(IsraelClock() + ": Checking for updates");
-                    int NumOfTotalLogs = Directory.GetFiles(PhantomPath, "LOG_*", SearchOption.AllDirectories).Count();// the updated Logs count
-                    if (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs)// Checks for new log
+                    int NumOfTotalLogs = Directory.GetFiles(PhantomPath, "LOG_*", SearchOption.AllDirectories).Count(); //Checks how many total logs there are in BOX
+                    if (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs) //Checks whether there is a new log
                     {
+                        Thread.Sleep(1500);
                         Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
-                        NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);
-                        NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);
+                        NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);//Checks if recent log files include parachute openings. Each parachute activation will send an email to the mailing list.
+                        NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);//Checks if recent log files include invalid logs. Each log has identified problems will send an email to the mailing list
                     }
-                    NewCUSTOMER = CheckForNewCustomers(BackupPath, MailtoSend);
+                    NewCUSTOMER = CheckForNewCustomers(BackupPath, MailtoSend);//Checking if a new customer has been identified in the box. Each new customer identified in the BOX will send an email to the mailing list.
                     if (NewCUSTOMER)
                     {
                         Console.WriteLine(IsraelClock() + ": A new customer was detected, a mail was sent and the Excel file was updated");
-                        //DailyData(true);
                     }
                     if (NewPYRO)
                         Console.WriteLine(IsraelClock() + ": Activated parachute detected, mail sent and Excel file updated");
@@ -127,25 +117,28 @@ namespace CustomersBox
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
                 }
-                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)
+                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)//Send daily status to the mailing list, every day at midnight.
                 {
                     UPdateTODAY = false;
-                    string[] DailyUpdateCustomers;
-                    DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
+                    string DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
                     Console.WriteLine(IsraelClock() + ": Daily Update!");//
                     string TextBodyMail = "\r\nYesterday, " + DailyData(false) + " new customers were identidied" +
                         "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
                     SendCopyExcel(MailtoSend, TextBodyMail,ExcelPath);
                 }
                 if ((((currentHour == 0) && (currentMinute > 10))) && !UPdateTODAY)
-                {
                     UPdateTODAY = true;
-                }
             }
         }
-        static void FilterLogs(string dirCopyPath,string[] FolderFiltered)//
+        static void FilterLogs(string dirCopyPath,string[] FolderFiltered)
         {
-
+            /* FilterLogs function:
+            *** background:  
+            *** input: "dirCopyPath", Path to the temporary folder to which the logs were copied.
+            *          "FolderFiltered", An array of paths to folders in which the logs are sorted.
+            *** Actions:  Sorting the logs into folders according to their status.
+            *** output: NaN
+            */
             int SamplingResolution;
             double AccAverageTH;
         WrongInput1:
@@ -160,7 +153,7 @@ namespace CustomersBox
                 Console.WriteLine(IsraelClock() + "Please insert only! number\n");
                 goto WrongInput1;
             }
-        WrongInput2:
+        WrongInput:
             Console.WriteLine(IsraelClock() + " Enter a minimum threshold value for the average acceleration");
             string InputFromUser2 = Console.ReadLine();
             try
@@ -170,43 +163,58 @@ namespace CustomersBox
             catch
             {
                 Console.WriteLine(IsraelClock() + "Please insert only! number\n");
-                goto WrongInput2;
+                goto WrongInput;
             }
-            int T = 0;
             string lastDir="";
             string[] LogsPath = Directory.GetFiles(dirCopyPath, "LOG_*", SearchOption.AllDirectories).ToArray();
             foreach (string LogPath in LogsPath)
             {
                 lastDir = LogPath;
-                T++;
                 Thread.Sleep(100);
                 long length = new System.IO.FileInfo(LogPath).Length;
                 if ((length < 100000) || (BarometerAVG(LogPath) < 3))//delete log if no flight
                     File.Delete(LogPath);
                 else if (LoadCsvFile(LogPath).Contains("!SWITCHED PYRO on!"))
-                    MoveFile(LogPath, FolderFiltered[2],T);//move to pyro on folder
+                    MoveFile(LogPath, FolderFiltered[2]);//move to pyro on folder
                 else
                 {
                     if (CheckForFaultyLogs(LogPath,SamplingResolution,AccAverageTH))
-                        MoveFile(LogPath, FolderFiltered[0],T);//move to FaultyFlight_NoTrigger folder
+                        MoveFile(LogPath, FolderFiltered[0]);//move to FaultyFlight_NoTrigger folder
                     else
-                        MoveFile(LogPath, FolderFiltered[1],T);//move to GoodFlight_NoTrigger folder
+                        MoveFile(LogPath, FolderFiltered[1]);//move to GoodFlight_NoTrigger folder
                 }
             }
             File.Delete(lastDir);
         }
-        static void MoveFile (string SourcePath, string MoveToPath,int T)
+        static void MoveFile (string SourcePath, string MoveToPath)
         {
+            /* MoveFile function: 
+             *** background: 
+             *** input: "SourcePath", Path to the temporary folder to which the logs were copied.
+             *          "MoveToPath", Path to the folder to which the log will be moved.
+             *** Actions: Moves a file in the temporary folder to the desired folder.
+             *** output: NaN.
+             */
+
             int sizePath = (new DirectoryInfo(SourcePath)).Parent.Parent.Parent.Parent.FullName.Length;
             string temp = SourcePath.Substring(sizePath,SourcePath.Length-sizePath);
             MoveToPath = MoveToPath  + temp;
             string FolderPath = (new DirectoryInfo(MoveToPath)).Parent.FullName;
             System.IO.Directory.CreateDirectory(FolderPath);
-            //Thread.Sleep(1000);
             File.Copy(SourcePath, MoveToPath);
         }
         static void SendCopyExcel (string[] MailtoSend,string TextBodyMail,string SourcePath)
         {
+            /* SendCopyExcel function: 
+             *** background: The function copies the customers summary file, and sorts it by application log date. 
+             *             At the end the function sends a e-mail to the mailing list.
+             *** input: "MailtoSend", Recipients list for receiving emails.
+             *          "TextBodyMail", The body of the message sent by email.
+             *          "SourcePath", Path to the original Excel file.
+             *** Actions: The function copies the client summary file to a new file, and edit it. 
+             *            The edited file is more convenient to read.
+             *** output: NaN.
+             */
             string CopyExcelPath = @"C:\Users\User\Documents\SafeAir2 customer summary.xlsx";
             if (File.Exists(CopyExcelPath))
                 File.Delete(CopyExcelPath);
@@ -216,7 +224,7 @@ namespace CustomersBox
             Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
             Excel.Range oRng;
             long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-            oRng = (Excel.Range)x.Range["B2:L" + LastRowofColA];
+            oRng = (Excel.Range)x.Range["B1:M" + LastRowofColA];
             oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
           oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
                 Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
@@ -225,6 +233,42 @@ namespace CustomersBox
                 Excel.XlSortDataOption.xlSortTextAsNumbers,
                 Excel.XlSortDataOption.xlSortTextAsNumbers,
                 Excel.XlSortDataOption.xlSortTextAsNumbers);
+            x.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+            //long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
+
+            for (int i = 2; i <= LastRowofColA; i++)
+            {
+                try
+                {
+
+                    if (Convert.ToInt32(x.Cells[i, 13].Value) > 0)
+                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
+                    else
+                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                }
+                catch
+                {
+                    x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                }
+                try
+                {
+                    if (Convert.ToInt32(x.Cells[i, 10].Value) > 0)
+                    {
+                        x.Cells[i, 10].Font.Bold = true;
+                        x.Cells[i, 10].Font.Underline = true;
+                    }
+                    else
+                    {
+                        x.Cells[i, 10].Font.Bold = false;
+                        x.Cells[i, 10].Font.Underline = false;
+                    }
+                }
+                catch
+                {
+                    x.Cells[i, 10].Font.Bold = false;
+                    x.Cells[i, 10].Font.Underline = false;
+                }
+            }
             sheet1.Save();
             excel.Quit();
             if (excel != null)
@@ -242,6 +286,13 @@ namespace CustomersBox
         }
         static void CopyLogsToFilter(string SourcePath, string DestinationPath,string[] NewFolders)
         {
+            /* CopyLogsToFilter function: 
+             *** background: 
+             *** input: "SourcePath", Path to BOX SYNC.
+             *          "DestinationPath", A path to the temporary folder to which the files will be copied.
+             *** Actions: The function copies the BOX SYNC folder to a temporary folder.
+             *** output: NaN.
+             */
             if (System.IO.Directory.Exists(DestinationPath))
                 Directory.Delete(DestinationPath, true);
             
@@ -265,59 +316,16 @@ namespace CustomersBox
             foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
                 File.Copy(newPath, newPath.Replace(SourcePath, DestinationPath), true);
         }
-        static void FilterGoodLogs(string dirCopyPath,string[] MailtoSend)
-        {
-            string[] LogsPath = Directory.GetFiles(dirCopyPath, "LOG_*", SearchOption.AllDirectories).ToArray();
-            foreach (string LogPath in LogsPath)
-            {
-                long length = new System.IO.FileInfo(LogPath).Length;
-                if (length<100000)
-                    File.Delete(LogPath);
-                else if (CheckIfDeleteLog(LogPath))
-                    File.Delete(LogPath);
-                string temPathDate =(new DirectoryInfo(LogPath)).Parent.FullName;
-                if (Directory.GetFiles(temPathDate, "LOG_*", SearchOption.AllDirectories).Count() == 0)
-                {
-                    Directory.Delete(temPathDate, true);
-                }
-                string temPathCustomer = (new DirectoryInfo(LogPath)).Parent.Parent.FullName;
-                if (Directory.GetFiles(temPathCustomer, "LOG_*", SearchOption.AllDirectories).Count() == 0)
-                {
-                    Directory.Delete(temPathCustomer, true);
-                }
-                
-            }
-            string[] dirsSystemsTypes = (Directory.EnumerateDirectories(dirCopyPath, "*", SearchOption.TopDirectoryOnly)).ToArray();
-            foreach (string dir in dirsSystemsTypes)
-            {
-                if (System.IO.Directory.GetDirectories(dir).Length == 0)
-                {
-                    Directory.Delete(dir,true);
-                }
-                else if (Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).Count()==0)
-                {
-                    Directory.Delete(dir,true);
-                }
-            }
-            string sZipFile = dirCopyPath.Substring(0,dirCopyPath.Length-1) + ".zip";
-            if (System.IO.File.Exists(sZipFile))
-            {
-                File.Delete(sZipFile);
-            }
-            try
-            {
-                ZipFile.CreateFromDirectory(dirCopyPath, sZipFile);
-                string TextBodyMail = "\r\nAttached";
-                SendMailWithAttch(MailtoSend, "All the good customer logs " + IsraelClock(), TextBodyMail, sZipFile);
-            }
-            catch
-            {
-                Console.WriteLine("Problem with compress the folder");
-            }
-
-        }
         static bool CheckForFaultyLogs(string path,int SamplingResolution,double AccAverageTH)
         {
+            /* CheckForFaultyLogs function: 
+             *** background: The function checks for hovering, while the accelerometer is below a reasonable value.
+             *** input: "path", Path to specific log.
+             *          "SamplingResolution", Height sampling resolution.
+             *          "AccAverageTH", Threshold value of the exelerometer.
+             *** Actions: 
+             *** output: true\false according to the log test.
+             */
             List<double> AccValues = new List<double>();
             List<double> BaroValues = new List<double>();
             bool firstTime = false, FaultyLog = false;
@@ -367,214 +375,14 @@ namespace CustomersBox
             }
             return FaultyLog;
         }
-        static bool[] CheckAccAndNoFilghtLogs (string path)
-        {
-            bool  DeleteByfaultyAccelerometerLOG = false, firstTime = false;
-            int AccProblem = 0;
-            int AccIndex = 7;
-            string line;
-            using (StreamReader sr = new StreamReader(path))
-            {
-                while ((line = sr.ReadLine()) != null)
-                {
-                    string[] parts = line.Split(',');
-                    if (parts.Contains("Absolute Acc.[m/s^2]"))
-                    {
-                        firstTime = true;
-                        AccIndex = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                    }
-                    try
-                    {
-                        if (line == "")
-                            continue;
-                        if (parts.Length < 7)
-                            continue;
-                    }
-                    catch { }
-                    if (firstTime)
-                    {
-                        if (!DeleteByfaultyAccelerometerLOG)
-                        {
-                            try
-                            {
-                                if (Convert.ToDouble(parts[AccIndex]) <= 8)
-                                    AccProblem++;
-                                if (AccProblem > 50)
-                                {
-                                    DeleteByfaultyAccelerometerLOG = true;
-                                }
-                                if (Convert.ToDouble(parts[AccIndex]) > 8)
-                                    AccProblem = 0;
-                            }
-                            catch { }
-                        }
-                    }
-                }
-                
-            }
-            bool[] BoolResults = { firstTime, DeleteByfaultyAccelerometerLOG};
-            return BoolResults;
-        }
-        static bool CheckLogStatus(string path)
-        {
-
-            bool[] Temp = CheckAccAndNoFilghtLogs(path);
-            //bool firstTime = Temp[0];
-            bool DeleteByfaultyAccelerometerLOG = Temp[1];
-
-            bool StatusLog = (DeleteByfaultyAccelerometerLOG);
-            return StatusLog;
-        }
-        static bool CheckIfDeleteLog(string path)
-        {
-            bool DeleteByLowestBarometerLOG = false;
-            bool[] Temp = CheckAccAndNoFilghtLogs(path);
-            bool firstTime = Temp[0];
-            bool DeleteByfaultyAccelerometerLOG = Temp[1];
-            if (firstTime&& !DeleteByfaultyAccelerometerLOG )
-            {
-                if (BarometerAVG(path)<3)
-                    DeleteByLowestBarometerLOG = true;
-            }
-            bool DeleteLOG = (DeleteByfaultyAccelerometerLOG  || DeleteByLowestBarometerLOG);
-            return DeleteLOG;
-        }
-        static void ExportAccleromterData(string[] MailtoSend)
-        {
-            string[] HeadersExcel = { "Drone Type", "Number of customers", "Total logs", "The minimum accelerometer value", "Number of logs with a accelerometer value lower than 2.5 for 10 continuous samples", "The log with the lowest accelerometer value" };
-            string Source = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem\Accelerometer Problem Summary.xlsx";
-            if (!System.IO.File.Exists(Source))
-            {
-                Console.WriteLine(IsraelClock() + " Create an excel file of the SA2 customers Accelerometer problems, at:\n" + Source + "\n");
-                Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
-                Microsoft.Office.Interop.Excel.Workbook sheet;
-                excel.Visible = false;
-                excel.DisplayAlerts = false;
-                sheet = excel.Workbooks.Add(Type.Missing);
-                sheet.SaveAs(Source);
-                sheet.Close();
-                if (excel != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
-                if (sheet != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
-                excel = null;
-                sheet = null;
-                excel = new Microsoft.Office.Interop.Excel.Application();
-                sheet = excel.Workbooks.Open(Source);
-                Microsoft.Office.Interop.Excel.Worksheet x1 = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-                excel.DefaultSheetDirection = (int)Excel.Constants.xlLTR; //define excel page left to right
-                x1.Range["A1:H1"].NumberFormat = "@";
-                x1.Range["A1:H" + x1.Rows.Count].NumberFormat = "@";
-                /* x1.Range["H2:H"+ x1.Rows.Count].NumberFormat = "dd/mm/yyyy";
-                x1.Range["I1:Z" + x1.Rows.Count].NumberFormat = "@"; */
-                x1.Range["A1:H" + x1.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
-                x1.Range["A1:H1"].EntireRow.Font.Bold = true;
-                sheet.Save();
-                sheet.Close();
-                if (excel != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
-                if (sheet != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
-                // Empty variables
-                excel = null;
-                sheet = null;
-                // Force garbage collector cleaning
-                GC.Collect();
-            }
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            int pathsize = PathSystemsName.Length;
-            double TotLogsUnderTheTH = 0;
-            double MinValueOfAcc= 100;
-            string[] dirsSystemsTypes = (Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly)).ToArray();
-            List<List<string>> Accelerometer = new List<List<string>>();
-            string PlatformType = "Unknown", NumOfTotalCustomersStr = "Unknown", NumOfTotalLogsSTR = "Unknown", MinValueOfAccSTR = " ", TotLogsUnderTheTH_STR= "Unknown";
-            string CsvWithLowestAccValue = "";
-            foreach (string dir in dirsSystemsTypes)
-            {
-                MinValueOfAcc = 100;
-                TotLogsUnderTheTH = 0;
-                if (System.IO.Directory.GetDirectories(dir).Length != 0)
-                {
-                    PlatformType = dir.Substring(pathsize, dir.Length - pathsize);//1. Drone type to excel
-                    int NumOfTotalCustomers = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly).Count();//2. Number of customers to excel
-                    string[] LogsPath = Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).ToArray();
-                    int NumOfTotalLogs = Directory.GetFiles(dir, "LOG_*", SearchOption.AllDirectories).Count();//4.total logs
-                    if (NumOfTotalLogs > 0)
-                    {
-                        foreach (string Log in LogsPath)
-                        {
-                            double[] tempValuefromfunc = AcceleometerProblemTH(Log);
-                            TotLogsUnderTheTH += tempValuefromfunc[1];//5. Number of logs with a accelerometer value lower than 2.5
-                            if (MinValueOfAcc > tempValuefromfunc[0])
-                            {
-                                MinValueOfAcc = tempValuefromfunc[0];//3. The minimum accelerometer value
-                                CsvWithLowestAccValue = Log;
-                            }
-                        }
-                    }
-                    NumOfTotalCustomersStr = NumOfTotalCustomers.ToString();
-                    if(MinValueOfAcc!=100)
-                        MinValueOfAccSTR = MinValueOfAcc.ToString();
-                    NumOfTotalLogsSTR = NumOfTotalLogs.ToString();
-                    TotLogsUnderTheTH_STR = TotLogsUnderTheTH.ToString();
-                    string[] TempData = { PlatformType, NumOfTotalCustomersStr, NumOfTotalLogsSTR, MinValueOfAccSTR, TotLogsUnderTheTH_STR, CsvWithLowestAccValue };
-                    Accelerometer.Add(TempData.ToList());
-                }
-                
-            }
-            Microsoft.Office.Interop.Excel.Application excel1 = new Microsoft.Office.Interop.Excel.Application();
-            Microsoft.Office.Interop.Excel.Workbook sheet1 = excel1.Workbooks.Open(Source);
-            Microsoft.Office.Interop.Excel.Worksheet x = excel1.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-            
-            int i1 = 0;
-            x.Cells.ClearContents();
-            foreach (string Header in HeadersExcel)
-            {
-                i1++;
-                x.Cells[1, i1] = Header;
-            }
-            for (int i = 0; i < Accelerometer.Count; i++)
-            {
-                int colCount = 0;
-                foreach (string str in Accelerometer[i])
-                {
-                    colCount++;
-                    x.Cells[i + 2, colCount] = str;
-                }
-            }
-            x.Columns.AutoFit();
-            sheet1.Save();
-            sheet1.Close();
-            if (excel1 != null)
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel1);
-            if (sheet1 != null)
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
-            // Empty variables
-            excel1 = null;
-            sheet1 = null;
-            // Force garbage collector cleaning
-            GC.Collect();
-
-            string sFileToZip = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem";
-            string sZipFile = @"C:\Users\User\Documents\SafeAir2 Customers accelerometer problem.zip";
-            if (System.IO.File.Exists(sZipFile))
-            {
-                File.Delete(sZipFile);
-            }
-            try
-            {
-                ZipFile.CreateFromDirectory(sFileToZip, sZipFile);
-                string TextBodyMail = "\r\nSummary of problems with values of an accelerometer";
-                SendMailWithAttch(MailtoSend, "Accelerometer Summary " + IsraelClock(), TextBodyMail, sZipFile);
-            }
-            catch
-            {
-                Console.WriteLine("Problem with compress the folder");
-            }
-
-        }
         static double BarometerAVG (string path)
         {
+            /* BarometerAVG function: 
+             *** background: 
+             *** input: "path", Path to specific log.
+             *** Actions: The function is used mainly to determine whether the log is a real flight (average height of over 3 meters) or an experiment on the ground.
+             *** output: true\false according to the log test.
+             */
             bool firstTime = false;
             int BaroIndex = 11;
             string line;
@@ -615,50 +423,15 @@ namespace CustomersBox
             catch{ }
             return Average;
         }
-        static double AccelerometerAVG(string path)
-        {
-            bool firstTime = false;
-            int AccIndex = 7;
-            string line;
-            List<double> Accvalue = new List<double>();
-            using (StreamReader sr = new StreamReader(path))
-            {
-                while ((line = sr.ReadLine()) != null)
-                {
-                    string[] parts = line.Split(',');
-                    if (parts.Contains("Absolute Acc.[m/s^2]"))
-                    {
-                        firstTime = true;
-                        AccIndex = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                    }
-                    try
-                    {
-                        if (line == "")
-                            continue;
-                        if (parts.Length < 7)
-                            continue;
-                    }
-                    catch { }
-                    if (firstTime)
-                    {
-                        try
-                        {
-                            Accvalue.Add(Convert.ToDouble(parts[AccIndex]));
-                        }
-                        catch { }
-                    }
-                }
-            }
-            double Average = 0;
-            try
-            {
-                Average = Accvalue.Average();
-            }
-            catch { }
-            return Average;
-        }
         static double[] AcceleometerProblemTH(string CSVpath)
         {
+            /* AcceleometerProblemTH (NOT USED) function: 
+             *** background: : A function that returns the lowest value of an accelerometer, and whether for 10 continuous values ​​the value is below 2.5 
+             *** input: "CSVpath", Path to specific log.
+             *** Actions:
+             *** output: "AccMinValue", The minimum value of the accelerometer found/
+             *           "NumberOfAccProblem", returns 1/0 if a function has identified in the sequence of 10 continuous samples a value below 2.5
+             */
             double LastValue = 0;
             double NumberOfAccProblem = 0;
             double AccMinValue = 9.8;
@@ -745,6 +518,13 @@ namespace CustomersBox
         }
         static int DailyData (bool NewCustomer)
         {
+            /* DailyData function: 
+             *** background:
+             *** input: "NewCustomer", if true: add to backup file, one more customer to today's date.
+             *                         if false: reads from a backup file the number of customers of yesterday, and returns the value.
+             *** Actions: The function updates the "customer number" backup file and returns the total number of customers
+             *** output: "countCustomerToday", Number of customers on a particular day.
+             */
             string CountCustomerToday = "";
             int countCustomerToday = 0;
             string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_Daily status.txt";
@@ -819,25 +599,39 @@ namespace CustomersBox
                 }
             }
             return countCustomerToday;
-        }
+        } 
         static void EditExcel(string Source)
         {
+            /* EditExcel function: 
+             *** background:
+             *** input: "Source", Path to the excel file.
+             *** Actions: The function paints each line that has an accelerometer problem in red, and also emphasizes the cells that show parachute openings
+             *** output: NaN.
+             */
+
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(Source);
             Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-            //Excel.Range oRng;
+
             long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
             x.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
-            //long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-            try
+            for (int i = 2; i <= LastRowofColA; i++)
             {
-                for (int i = 2; i <= LastRowofColA; i++)
+                try
+                {
+
+                    if (Convert.ToInt32(x.Cells[i, 13].Value) > 0)
+                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
+                    else
+                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                }
+                catch
+                {
+                    x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                }
+                try
                 {
                     if (Convert.ToInt32(x.Cells[i, 10].Value) > 0)
-                    {
-                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
-                    }
-                    if (Convert.ToInt32(x.Cells[i,10].Value) > 0 )
                     {
                         x.Cells[i, 10].Font.Bold = true;
                         x.Cells[i, 10].Font.Underline = true;
@@ -848,88 +642,36 @@ namespace CustomersBox
                         x.Cells[i, 10].Font.Underline = false;
                     }
                 }
-                //x.Range["H2:H"+ x.Rows.Count].NumberFormat = "DD/MM/YY";
-                /*
-                oRng = (Excel.Range)x.Range["B2:L"+ LastRowofColA];
-                oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
-              oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
-                    Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
-                    Excel.XlYesNoGuess.xlGuess, Type.Missing, Type.Missing,
-                    Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
-                    Excel.XlSortDataOption.xlSortTextAsNumbers,
-                    Excel.XlSortDataOption.xlSortTextAsNumbers,
-                    Excel.XlSortDataOption.xlSortTextAsNumbers);*/
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine("There was a PROBLEM with edit excel file!");
-            }
-            finally
-            {
-                sheet1.Save();
-                excel.Quit();
-                //sheet2.Close();
-                if (excel != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
-                if (sheet1 != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
-                // Empty variables
-                excel = null;
-                sheet1 = null;
-                // Force garbage collector cleaning
-                GC.Collect();
-            }
-
-
-        }
-        static void BoldRowsWithAccelerometerProblem (string Source,string BackupPath2)
-        {
-            Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
-            Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(Source);
-            Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-            long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-            x.Range["A1:Z"+ LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
-            int NumLog2 = 0;
-            //long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-            var logFile2 = File.ReadAllLines(BackupPath2);
-            var BackupList2 = new List<string>(logFile2);
-            var BackupArr2 = BackupList2.ToArray();
-            try
-            {
-                for (int i = 2; i <= LastRowofColA; i++)
+                catch
                 {
-                    string[] partsBack2 = BackupArr2[i - 2].Split(',');
-                    try { NumLog2 = Convert.ToInt32(partsBack2[1]); } catch { NumLog2 = 0; }
-                    if (NumLog2 > 0)
-                    {
-                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
-                    }
+                    x.Cells[i, 10].Font.Bold = false;
+                    x.Cells[i, 10].Font.Underline = false;
                 }
             }
-            catch (Exception exception)
-            {
-                Console.WriteLine("There was a PROBLEM with Backup file!");
-            }
-            finally
-            {
-                sheet1.Save();
-                excel.Quit();
-                //sheet2.Close();
-                if (excel != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
-                if (sheet1 != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
-                // Empty variables
-                excel = null;
-                sheet1 = null;
-                // Force garbage collector cleaning
-                GC.Collect();
-            }
-
-
+            sheet1.Save();
+            excel.Quit();
+            //sheet2.Close();
+            if (excel != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
+            if (sheet1 != null)
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet1);
+            // Empty variables
+            excel = null;
+            sheet1 = null;
+            // Force garbage collector cleaning
+            GC.Collect();
         }
         static bool CheckForNewAccelerometerProblem(string path,string[] MailtoSend)
         {
+            /* CheckForNewAccelerometerProblem function: 
+             *** background: A function called whenever a new log is detected,
+             *               and checks to see if the new logs are showing an accelerometer problem (log problem)
+             *** input: "path", Path to a folder where new logs are found.
+             *          "MailtoSend",  Recipients list for receiving emails.
+             *** Actions: 
+             *** output: true\false according to the logs test.
+             */
+
             bool StatusNewLogs = false;
             string CustomersData = ExportDataFromBackupFile(path)[1];
             string[] Customers = CustomersData.Split('\n');
@@ -947,12 +689,12 @@ namespace CustomersBox
                 int NumbOflogsFromBackup = Convert.ToInt32(Customers[i].Split(',')[1]);
                 if (Logs.Length > NumbOflogsFromBackup)
                 {
-                    StatusNewLogs = true;
                     for (int j = Logs.Length - 1; j > NumbOflogsFromBackup-1; j--)
                     {
                         string textLog = LoadCsvFile(Logs[j]);
                         if (CheckForFaultyLogs(Logs[j], 150, 8) && !textLog.Contains("!SWITCHED PYRO on!"))
                         {
+                            StatusNewLogs = true;
                             string[] CusData = GetDataAboutNewCustomer(CustomerLogPath);
                             string TextBodyMail = "\r\nIncorrect flight log detected\n" +
                                     "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
@@ -973,6 +715,15 @@ namespace CustomersBox
         }
         static bool CheckForNewPyroTriggerPerCustomer(string path, string[] MailtoSend)
         {
+            /* CheckForNewPyroTriggerPerCustomer function: 
+             *** background: A function called whenever a new log is detected,
+             *               And checks whether there was a parachute opening.
+             *** input: "path", Path to a folder where new logs are found.
+             *          "MailtoSend",  Recipients list for receiving emails.
+             *** Actions: 
+             *** output: true\false according to the logs test.
+             */
+
             bool StatusNewLogs = false;
             string CustomersData = ExportDataFromBackupFile(path)[1];
             string[] Customers = CustomersData.Split('\n');
@@ -990,12 +741,12 @@ namespace CustomersBox
                 int NumbOflogsFromBackup = Convert.ToInt32(Customers[i].Split(',')[1]);
                 if (Logs.Length > NumbOflogsFromBackup)
                 {
-                    StatusNewLogs = true;
                     for (int j = Logs.Length - 1; j > NumbOflogsFromBackup - 1; j--)
                     {
                         string textLog = LoadCsvFile(Logs[j]);
                         if (textLog.Contains("!SWITCHED PYRO on!"))
                         {
+                            StatusNewLogs = true;
                             string[] CusData = GetDataAboutNewCustomer(CustomerLogPath);
                             string TextBodyMail = "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
                                     "\r\nID: " + CusData[0] +
@@ -1013,406 +764,16 @@ namespace CustomersBox
             }
             return StatusNewLogs;
         }
-        /*static bool CheckForNewAccelerometerProblem(string BackupPath2,string[] MailtoSend)
-        {
-
-            int TempAccProbValue_toList = 0, TempNumbOfLogsValue_toList = 0;
-            bool needUpdatesFile = false;
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            List<int> AccProbListFromBackup1 = new List<int>();
-            List<int> NumbOfListFromBackup1 = new List<int>();
-            List<string> CustomersPath = new List<string>();
-            string GeneralCusData = ImportCustomersIDfromBackup1(BackupPath2)[0];
-            string[] GeneralCusData_Array = (GeneralCusData.Split('\n'));
-            for (int i = 0; i < GeneralCusData_Array.Length - 1; i++)
-            {
-                try { TempAccProbValue_toList = Convert.ToInt32(GeneralCusData_Array[i].Split(',')[1]); } catch { TempAccProbValue_toList = 100000; }
-                AccProbListFromBackup1.Add(TempAccProbValue_toList);
-                try { TempNumbOfLogsValue_toList = Convert.ToInt32(GeneralCusData_Array[i].Split(',')[2]); } catch { TempNumbOfLogsValue_toList = 100000; }
-                NumbOfListFromBackup1.Add(TempNumbOfLogsValue_toList);
-                string[] dir = Directory.GetDirectories(PathSystemsName, ((GeneralCusData_Array[i].Split(',')[0]) + "*"), SearchOption.AllDirectories).ToArray();
-                CustomersPath.Add(dir[0]);
-            }
-            for (int i=0;i<CustomersPath.Count; i++)
-            {
-                int LogCount = (Directory.GetFiles(CustomersPath[i], "LOG_*", SearchOption.AllDirectories)).Count();
-                if (LogCount > NumbOfListFromBackup1[i])
-                {
-                    int AccProb = AccelerometerFromLog(CustomersPath[i], NumbOfListFromBackup1[i]);
-                    if (AccProb>0)
-                    {
-                        List<string> x = new List<string>();
-                        DirectoryInfo directoryInfo = new DirectoryInfo(CustomersPath[i]);
-                        var results = directoryInfo.GetFiles("*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList();
-                        for (int k = 0; k < results.Count; k++)
-                        {
-                            x.Add(results[k].FullName.ToString());
-                        }
-                        string[] Logs = x.ToArray();
-                        bool startAccData = false;
-                        for (int s = Logs.Length - 1; s > NumbOfListFromBackup1[i]; s--)
-                        {
-                            long length = new System.IO.FileInfo(Logs[s]).Length;
-                            if (length > 100000)
-                            {
-                                using (StreamReader sr = new StreamReader(Logs[s]))
-                                {
-                                    int AccProblem = 0;
-                                    int x1 = 7;
-                                    string line;
-                                    startAccData = false;
-                                    List<double> Acceleroometer = new List<double>();
-                                    while ((line = sr.ReadLine()) != null)
-                                    {
-                                        string[] parts = line.Split(',');
-                                        if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
-                                        {
-                                            startAccData = true;
-                                            x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                                        }
-                                        if (startAccData)
-                                        {
-                                            try
-                                            {
-                                                if (Convert.ToDouble(parts[x1]) < 8)
-                                                    AccProblem++;
-                                                if (AccProblem > 50)
-                                                {
-                                                    needUpdatesFile = true;
-                                                    if ((BarometerAVG(Logs[s])>=3)&&(AccelerometerAVG(Logs[s])<8.401))
-                                                    {
-                                                        string[] CusData = GetDataAboutNewCustomer(CustomersPath[i]);
-                                                        string TextBodyMail = "\r\nThe value of the accelerometer was measured below 8 [m^2/s] for 50 continuous samples\n" +
-                                                                "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
-                                                                "\r\nID: " + CusData[0] +
-                                                                "\r\nType Drone: " + CusData[3] +
-                                                                "\r\nFirmware version: " + CusData[4] +
-                                                                "\r\nFirst Connaction at: " + CusData[5] +
-                                                                "\r\nLast Connaction at: " + CusData[6] +
-                                                                "\r\n\nPath folder: " + CustomersPath[i];
-                                                        //SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[s]);
-                                                    }
-                                                    break;
-                                                }
-                                                if (Convert.ToDouble(parts[x1]) > 8)
-                                                    AccProblem = 0;
-                                            }
-                                            catch
-                                            {
-
-                                            }
-
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return needUpdatesFile;
-        }*/
-        /*static bool CheckForNewPyroTriggerPerCustomer(string BackupPath1,string[] MailtoSend, string BackupPath2, string Source)
-        {
-            int TempPyroValue_toList = 0, PyroOnCount=0;
-            bool needUpdatesFile = false;
-            string LastLogWithPyro = "";
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            List<int> PyroListFromBackup1 = new List<int>();
-            List<string> CustomersPath = new List<string>();
-            string GeneralCusData = ImportCustomersIDfromBackup1(BackupPath1)[0];
-            string[] GeneralCusData_Array = (GeneralCusData.Split('\n'));
-            for (int i=0;i<GeneralCusData_Array.Length-1;i++)
-            {
-                try { TempPyroValue_toList = Convert.ToInt32(GeneralCusData_Array[i].Split(',')[1]); }  catch { TempPyroValue_toList = 1000; }
-                PyroListFromBackup1.Add(TempPyroValue_toList);
-                string[] dir = Directory.GetDirectories(PathSystemsName, ((GeneralCusData_Array[i].Split(',')[0])+"*"), SearchOption.AllDirectories).ToArray();
-                CustomersPath.Add(dir[0]);
-            }
-            int[] PyroArrayFromBackup1 = PyroListFromBackup1.ToArray();
-            string[] ID_ArrayFromBackup1 = CustomersPath.ToArray();
-            List<string> Log = new List<string>();
-            for (int i=ID_ArrayFromBackup1.Length-1;i>=0 ; i--)
-            {
-                PyroOnCount = 0;
-                Log.Clear();
-                LastLogWithPyro = "";
-                Log.AddRange(Directory.GetFiles(ID_ArrayFromBackup1[i], "*", SearchOption.AllDirectories));
-                for (int k1 = Log.Count; k1 > 1; k1--)
-                {
-                    string TextFromLog = LoadCsvFile(Log[k1 - 1]);
-                    if (CheckPyroTrigLog(TextFromLog, Log[k1 - 1].ToString()))
-                    {
-                        PyroOnCount++;
-                        if (LastLogWithPyro.Length < 10)
-                            LastLogWithPyro = Log[k1 - 1];
-                    }
-                     
-                }
-                if (PyroArrayFromBackup1[i]<PyroOnCount)
-                {
-                    string[] CusData = GetDataAboutNewCustomer(ID_ArrayFromBackup1[i]);
-                    string TextBodyMail = "\r\nFrom: " + CusData[2] + " at " + CusData[1] +
-                            "\r\nID: " + CusData[0] +
-                            "\r\nType Drone: " + CusData[3] +
-                            "\r\nFirmware version: " + CusData[4] +
-                            "\r\nFirst Connaction at: " + CusData[5] +
-                            "\r\nLast Connaction at: " + CusData[6] +
-                            "\r\n\nPath folder: " + ID_ArrayFromBackup1[i];
-                    SendMailWithAttch(MailtoSend, "Parachute opening detected " + IsraelClock(), TextBodyMail,LastLogWithPyro);
-                    needUpdatesFile=true;
-                }
-            }
-
-            return needUpdatesFile;
-        }*/
-        /*private static void UpdateBackupFile_2(string SourcePath, string BackupPath2,string BackupPath1)
-        {
-            int j = 0;
-            List<string> temp = new List<string>(); // temporary list
-            List<string> AllCustomers = new List<string>(); // temporary list
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
-            int PathSize = PathSystemsName.Length; //length of path
-            foreach (string dir in dirsSystemsTypes)//get phantom name (Phantom3, Phantom 4 Pro ...)
-            {
-                if (System.IO.Directory.GetDirectories(dir).Length == 0)
-                {
-
-                }
-                else
-                {
-                    temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
-                    AllCustomers.AddRange(temp);
-                    j++;
-                    temp.Clear();
-                }
-            }
-            if (!System.IO.File.Exists(BackupPath2))
-            {
-                int NameIndex = BackupPath2.IndexOf("BACKUP_");
-                string BackupFolderPath = BackupPath2.Substring(0, NameIndex);
-                System.IO.Directory.CreateDirectory(BackupFolderPath);
-                using (StreamWriter sw = File.CreateText(BackupPath2))
-                {
-                    sw.WriteLine("");
-                }
-                File.WriteAllText(BackupPath2, String.Empty);
-                
-                Microsoft.Office.Interop.Excel.Application excel2 = new Microsoft.Office.Interop.Excel.Application();
-                Microsoft.Office.Interop.Excel.Workbook sheet2 = excel2.Workbooks.Open(SourcePath);
-                Microsoft.Office.Interop.Excel.Worksheet x2 = excel2.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-                try
-                {
-                    List<string> AcceleromterProbList = new List<string>();
-                    long LastRowofColA = x2.Cells[x2.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-                    for (int i = 2; i <= LastRowofColA; i++)
-                    {
-                        int NumOfLogsPerCustomer = Directory.GetFiles(AllCustomers[i - 2], "*", SearchOption.AllDirectories).Count() - 1;
-                        int AccProb = AccelerometerFromLog(AllCustomers[i - 2],1);
-                        AcceleromterProbList.Add((((Microsoft.Office.Interop.Excel.Range)x2.Cells[i, 2]).Value) + ", "  + AccProb + ", " + NumOfLogsPerCustomer);
-                        string g = AcceleromterProbList[i - 2].ToString();
-
-                        File.AppendAllLines(BackupPath2, new[] { g });
-                    }
-                }
-                catch (Exception exception)
-                {
-                    Console.WriteLine("There was a PROBLEM with Backup file!");
-                }
-                finally
-                {
-                    excel2.Quit();
-                    //sheet2.Close();
-                    if (excel2 != null)
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(excel2);
-                    if (sheet2 != null)
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet2);
-                    // Empty variables
-                    excel2 = null;
-                    sheet2 = null;
-                    // Force garbage collector cleaning
-                    GC.Collect();
-                }
-            }
-            else
-            {
-                //List<List<string>> BackupList1 = new List<List<string>>(); // path to customers folders
-                //List<List<string>> BackupList2 = new List<List<string>>(); // path to customers folders
-                var logFile1 = File.ReadAllLines(BackupPath1);
-                var logFile2 = File.ReadAllLines(BackupPath2);
-                var BackupList1 = new List<string>(logFile1);
-                var BackupList2 = new List<string>(logFile2);
-                string[] BackupArr1 = BackupList1.ToArray();
-                string[] BackupArr2 = BackupList2.ToArray();
-                if (BackupArr1.Length != BackupArr2.Length)
-                {
-                    string Backup2Str = String.Join(" \n", BackupList2.ToArray());
-                    for (int i = 0; i < BackupArr1.Length; i++)
-                    {
-                        if (!Backup2Str.Contains(BackupArr1[i].Substring(0, 24)))
-                        {
-                            int NumOfLogsPerCustomer = Directory.GetFiles(AllCustomers[i], "*", SearchOption.AllDirectories).Count() - 1;
-                            int AccProb = AccelerometerFromLog(AllCustomers[i],1);
-                            BackupList2.Insert(i, BackupArr1[i].Substring(0, 24) +", " + AccProb + ", " + NumOfLogsPerCustomer);
-                            
-                        }
-                    }
-                    File.Delete(BackupPath2);
-                    Backup2Str = "";
-                    Backup2Str = String.Join(" \n", BackupList2.ToArray());
-                    using (StreamWriter sw = File.CreateText(BackupPath2))
-                    {
-                        sw.WriteLine(Backup2Str);
-                    }
-                }
-                bool Changed = false;
-                int NumLog1 = 0, NumLog2=0;
-                logFile1 = File.ReadAllLines(BackupPath1);
-                logFile2 = File.ReadAllLines(BackupPath2);
-                BackupList1 = new List<string>(logFile1);
-                BackupList2 = new List<string>(logFile2);
-                BackupArr1 = BackupList1.ToArray();
-                BackupArr2 = BackupList2.ToArray();
-                BackupList2.Clear();
-                for (int i=0;i<BackupArr2.Length;i++)
-                {
-                    string[] partsBack1 = BackupArr1[i].Split(',');
-                    string[] partsBack2 = BackupArr2[i].Split(',');
-                    try { NumLog2 = Convert.ToInt32(partsBack2[2]); } catch { NumLog2 = 0; }
-                    try { NumLog1 = Convert.ToInt32(partsBack1[2]); } catch { NumLog1 = 0; }
-                    if (NumLog1 == NumLog2)
-                    {
-                        BackupList2.Add(BackupArr2[i]);
-                    }
-                    else if (NumLog1 > NumLog2)
-                    {
-                        Changed = true;
-                        int NumOfLogsPerCustomer = Directory.GetFiles(AllCustomers[i], "*", SearchOption.AllDirectories).Count() - 1;
-                        DirectoryInfo directoryInfo = new DirectoryInfo(AllCustomers[i]);
-                        var result = directoryInfo.GetFiles("*.*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToArray();
-                        int AccProb = AccelerometerFromLog(AllCustomers[i], NumLog2)+Convert.ToInt32(partsBack2[1]);
-                        BackupList2.Add(partsBack2[0] + ", " +  AccProb + ", " + NumOfLogsPerCustomer);
-                    }
-                }
-                if (Changed)
-                {
-                    File.Delete(BackupPath2);
-                    string Backup2Str = "";
-                    Backup2Str = String.Join(" \n", BackupList2.ToArray());
-                    using (StreamWriter sw = File.CreateText(BackupPath2))
-                    {
-                        sw.WriteLine(Backup2Str);
-                    }
-                }
-            }
-        }*/
-        static int AccelerometerFromLog (string FolderCustomerPath,int endFor )
-        {
-            int NumberOfAccProblem = 0;
-            bool startAccData = false;
-            List<string> x = new List<string>();
-            DirectoryInfo directoryInfo = new DirectoryInfo(FolderCustomerPath);
-            var results = directoryInfo.GetFiles("*.*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList();
-            for (int i = 0; i < results.Count; i++)
-            {
-                x.Add(results[i].FullName.ToString());
-            }
-            string[] Logs= x.ToArray();
-            for (int i = Logs.Length - 1; i > endFor; i--)
-            {
-                long length = new System.IO.FileInfo(Logs[i]).Length;
-                if (length > 100000)
-                {
-                    using (StreamReader sr = new StreamReader(Logs[i]))
-                    {
-                        int AccProblem = 0;
-                        int x1 = 7;
-                        string line;
-                        startAccData = false;
-                        List<double> Acceleroometer = new List<double>();
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            string[] parts = line.Split(',');
-                            if ((parts.Contains("Absolute Acc.[m/s^2]")) && !startAccData)
-                            {
-                                startAccData = true;
-                                x1 = Array.FindIndex(parts, row => row.Contains("Absolute Acc.[m/s^2]"));
-                            }
-                            if (startAccData)
-                            {
-                                try
-                                {
-                                    if (Convert.ToDouble(parts[x1]) < 8)
-                                        AccProblem++;
-                                    if (AccProblem > 50)
-                                    {
-                                        if ((BarometerAVG(Logs[i]) >= 3) && (AccelerometerAVG(Logs[i]) < 8.401))
-                                        {
-                                            NumberOfAccProblem++;
-                                        }
-                                        break;
-                                    }
-                                    if (Convert.ToDouble(parts[x1]) > 8)
-                                        AccProblem = 0;
-                                }
-                                catch
-                                {
-
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
-            return NumberOfAccProblem;
-        }
-        static string[] ImportCustomersIDfromBackup1 (string path)
-        {
-            string[] TempArr = { "", "", "" },DataCus = { "", "" ,"",""};
-            int NumberOfCustomersOfTotalLOGs = 0;
-            string CustomersDatas = "";
-            List<List<string>> CustomersIDs = new List<List<string>>(); // path to customers folders
-            List<string> temp = new List<string>(); // temporary list
-            var logFile = File.ReadAllLines(path);
-            var CustomersID = new List<string>(logFile);
-            string[] IDArr = CustomersID.ToArray();
-            for (int j = 0; j < IDArr.Length; j++)
-            {
-                TempArr[0] = IDArr[j].Substring(0, 24);
-                int index = IDArr[j].IndexOf(',', IDArr[j].IndexOf(',') + 1);
-                TempArr[1] = IDArr[j].Substring(25, index-25);
-                TempArr[2] = IDArr[j].Substring(index+1, IDArr[j].Length-index-1);
-                NumberOfCustomersOfTotalLOGs += Convert.ToInt32(TempArr[2]);
-                CustomersIDs.Add(TempArr.ToList());
-                CustomersDatas += TempArr[0] + ", " + TempArr[1] + ", " + TempArr[2] + "\n";
-            }
-            string NumberOfCustomers = (CustomersIDs.Count).ToString();
-            for (int i=0 ; i < Convert.ToInt32(NumberOfCustomers) ; i++)
-            {
-                temp.Add(CustomersIDs[i][2]);
-            }
-            string CountLogsPerCustomer = String.Join(" \n", temp.ToArray());
-            string[][] arrays = CustomersIDs.Select(a => a.ToArray()).ToArray();
-            DataCus[0] = CustomersDatas; DataCus[1] = NumberOfCustomers;DataCus[2] = NumberOfCustomersOfTotalLOGs.ToString();DataCus[3] = CountLogsPerCustomer;
-            return DataCus;
-        }
-        /*static bool CheckForNewCustomers(string path, string[] MailtoSend)
-        {
-            bool NewCustomer = false;
-            string[] Customers = ExportDataFromBackupFile(path)[1];
-            List<string> Customer_IDs = new List<string>();
-            for (int i = 0; i < Customers.Length; i++)
-            {
-                Customer_IDs.Add(Customers[i].Split(',')[0]);
-            }
-            string[] CustomersIDs = Customer_IDs.ToArray();
-
-            return NewCustomer;
-        }*/
         static bool CheckForNewCustomers (string BackupPath, string[] MailtoSend)
         {
+            /* CheckForNewAccelerometerProblem function: 
+             *** background: A function that checks whether there is a new customer
+             *** input: "BackupPath", Path to the backup file.
+             *          "MailtoSend",  Recipients list for receiving emails.
+             *** Actions: Count the number of customers right now, and compare it to the number of customers listed in a backup file. If there is a new customer sent mail to mailing list.
+             *** output: true\false.
+             */
+
             bool NewCustomer = false;
             string CustomersData = ExportDataFromBackupFile(BackupPath)[1];
             string[] Customers = CustomersData.Split('\n');
@@ -1494,6 +855,19 @@ namespace CustomersBox
         }
         static string[] GetDataAboutNewCustomer(string path)
         {
+            /* GetDataAboutNewCustomer function: 
+             *** background: The function returns information about the customer to provide this information by e-mail.
+             *** input: "path", path to the customer folder
+             *** Actions: 
+             *** output: "CustomerData", An array of all the necessary information, Like: serialNamber,
+             *                                                                            country,
+             *                                                                            city,
+             *                                                                            drone Type,
+             *                                                                            firmware Version,
+             *                                                                            first sync date,
+             *                                                                            last sync date.
+             */
+
             bool SecondTRY = true;
             SecTRY:
             string Firmware;
@@ -1514,8 +888,7 @@ namespace CustomersBox
             }
             string[] Logs = x.ToArray();
             string[] DatesLOGs = y.ToArray();
-
-            //string[] DatesLOGs = Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly).ToArray();
+            
             string[] dateLOGs = DatesLOGs;
             if (DatesLOGs.Length == 0)
             {
@@ -1586,6 +959,16 @@ namespace CustomersBox
         }
         static void CreateFilesIfNotExits(string Source, string BackupPath,string PhantomPath)
         {
+            /* CreateFilesIfNotExits function: 
+            *** background: The function checks whether the files that are necessary for ongoing work exist, 
+            *               and if not then the function will generate them.
+            *** input: "Source", Path to the excel file.
+            *          "BackupPath", Path to the backup file.
+            *          "PhantomPath",  Path to the phantom folder.
+            *** Actions: 
+            *** output: NaN.
+            */
+
             if (!System.IO.File.Exists(Source))
             {
                 Console.WriteLine(IsraelClock() + " Create an excel file of the SA2 customers summary, at:\n" + Source + "\n");
@@ -1631,10 +1014,20 @@ namespace CustomersBox
             {
                 UpdateExcelFiles(Source, BackupPath, PhantomPath);
             }
-            
+
         }
-        static string[] UpdateExcelFiles(string SourcePath, string BackupPath,string PhantomPath)
+        static string UpdateExcelFiles(string SourcePath, string BackupPath,string PhantomPath)
         {
+            /* UpdateExcelFiles function: 
+            *** background: 
+            *** input: "SourcePath", Path to the excel file.
+            *          "BackupPath", Path to the backup file.
+            *          "PhantomPath",  Path to the phantom folder.
+            *** Actions: the function updates the Excel file that summarizes
+            *            all the customers in the BOX SYNC folder.
+            *** output: "GeneralDataAboutCustomers", Total number of customers.
+            */
+
             int TrigCount = 0; 
             int Numb;
             bool FWBool = true;
@@ -1642,20 +1035,22 @@ namespace CustomersBox
             List<List<string>> CustomersSummary = new List<List<string>>();//Final List to excel
             List<List<string>> CustomersPath = new List<List<string>>(); // path to customers folders
             List<string> temp = new List<string>(); // temporary list
-            List<string> SerialNumberStr = new List<string>();
             List<string> SerialNumberPath = new List<string>();
+            List<string> ID_Customers = new List<string>(); // A List of IDs customers to backup file.
+            List<string> LogCountPerCustomer = new List<string>(); // A list of the parachute openings of each customer.
+            List<string> FullPathList = new List<string>(); // A list of each customer's path.
+
             List<string> HeadersExcel = new List<string>() { "#", "Serial Number","Platform type",
                 "Firmware version","Country", "City", "Date of first connection", "Date of last sync",
                 "Total Logs","Trigger count", "Trigger reason","Number of flights","Number of faulty logs"};
-            List<string> ID_Customers = new List<string>();
-            List<string> LogCountPerCustomer = new List<string>();
-            List<string> FullPathList = new List<string>();
+
+            
             int j = 0, CountCustomers = 0;
             string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
             int PathSize = PathSystemsName.Length; //length of path
 
-            foreach (string dir in dirsSystemsTypes)//get phantom name (Phantom3, Phantom 4 Pro ...)
+            foreach (string dir in dirsSystemsTypes)
             {
                 if (System.IO.Directory.GetDirectories(dir).Length != 0)
                 {
@@ -1688,12 +1083,10 @@ namespace CustomersBox
                     string SerialNamber = CusINFO.Name; // 2.SerialNumber
                     ID_Customers.Add(SerialNamber);
                     FullPathList.Add(FullPath);
-                    //You'll remove a note if you'd like to investigate a specific customer
-                    //if (SerialNamber== "002700363037510E32363832") 
-                    //{
 
-                    //}
-                    
+                    //You'll remove a note if you'd like to investigate a specific customer
+                    /*if (SerialNamber== "0017002C3037510A32363832") 
+                    { }*/
 
                     List<string> y = new List<string>();
                     List<string> y1 = new List<string>();
@@ -1707,14 +1100,12 @@ namespace CustomersBox
                     string[] Logs = y1.ToArray();
                     string[] DatesLOGs = y.ToArray();
 
-
                     string TotalLogs = Logs.Length.ToString();
                     LogCountPerCustomer.Add(TotalLogs);
-                    //string[] DatesLOGs = Directory.EnumerateDirectories(CustomersPath[i][k], "*", SearchOption.TopDirectoryOnly).ToArray();
                     string[] dateLOGs = DatesLOGs;
                     if (DatesLOGs.Length == 0)
                     {
-                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "unknown", "unknown", "0","0","","0" };
+                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "unknown", "unknown", "0", "0", "", "0", "0" };
                         SerialNumberPath.Add(CusINFO.FullName);
                         CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
                         continue;
@@ -1746,8 +1137,7 @@ namespace CustomersBox
                     //DateFirst = DateFirst.Remove('0');
                     if (DateLast.Substring(0,1).Contains("0"))
                         DateLast = DateLast.Remove(0,1);
-
-                    //string[] Logs = Directory.GetFiles(CustomersPath[i][k], "*", SearchOption.AllDirectories);
+                    
 
                     string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog="";
                     TrigCount = 0;
@@ -1760,8 +1150,6 @@ namespace CustomersBox
                         {
                             SMAtextOK = true;
                             TextFromLogSelect = TextFromLog;
-
-
                         }
                         if (TextFromLog.Contains("!Version....................:") && FWBool && !SMAtextOK)
                         {
@@ -1774,10 +1162,9 @@ namespace CustomersBox
                         TextFromLogSelect = TextWithFirmwareVer;
                     if(FWBool&&!SMAtextOK)
                         TextFromLogSelect = TextFromLog;
-                    //TextFromLogSelect = TextFromLog;
                     int cityIndexStart = TextFromLogSelect.IndexOf("city:");
                     int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
-                    if (TextFromLogSelect.Substring(0, cityIndexEnd - 1) == "null")
+                    if (TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))
                     {
                         City = "unknown";
                         Country = "unknown";
@@ -1817,7 +1204,6 @@ namespace CustomersBox
                         Country, City, DateFirst, DateLast,TotalLogs, PyroOnCount.ToString(),TrigReason,
                         NumberFlights.ToString(),BadLog.ToString() };//need to build counter from logs
                     CustomersSummary.Add(ExcelRow.ToList());
-                    SerialNumberStr.Add(SerialNamber);
                     SerialNumberPath.Add(CusINFO.FullName);
                 }
             }
@@ -1866,7 +1252,8 @@ namespace CustomersBox
                 x.Columns.AutoFit();
                 //((Microsoft.Office.Interop.Excel.Range)x.Cells[x.Rows.Count, x.Columns.Count]).AutoFit();
                 sheet1.Save();
-                sheet1.Close();
+                //sheet1.Close();
+                excel.Quit();
                 if (excel != null)
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
                 if (sheet1 != null)
@@ -1878,17 +1265,25 @@ namespace CustomersBox
                 GC.Collect();
             }
             UpdateBackupFile(BackupPath, ID_Customers.ToArray(), LogCountPerCustomer.ToArray(),FullPathList.ToArray(),PhantomPath);
-            /*UpdateBackupFile_1(SourcePath, BackupPath1);
-            UpdateBackupFile_2(SourcePath, BackupPath2, BackupPath1);*/
             EditExcel(SourcePath);
             string CustomersCount = (CustomerPaths.Length).ToString();//number of customers
-
-            string[] GeneralDataAboutCustomers = { CustomersCount, "" };
             Console.WriteLine(IsraelClock() + " Excel file SA2 customer summary was updated, at:\n" + SourcePath + "\n");
-            return GeneralDataAboutCustomers;
+            return CustomersCount;
         }
         static void UpdateBackupFile(string Path, string[] ID, string[] LogCount, string[] FullPathList,string PhantomPath)
         {
+            /* UpdateBackupFile function: 
+            *** background: 
+            *** input: "Path", path to the backup file.
+            *          "ID", an array of all serial numbers of each customer
+            *          "Logcount", an array of all the parachute openings of each customer.
+            *          "FullPathList", an array of all the paths of each client
+            *          "PhantomPath",  Path to the phantom folder.
+            *** Actions: the function updates the backup file that summarizes all customer
+            *            in the BOX SYNC folder and records the number of logs per customer.
+            *** output: NaN.
+            */
+
             int NumOfTotalLogs = Directory.GetFiles(PhantomPath, "LOG_*", SearchOption.AllDirectories).Count();// the updated Logs count
             if (!System.IO.File.Exists(Path))
             {
@@ -1915,6 +1310,15 @@ namespace CustomersBox
         }
         static string[] ExportDataFromBackupFile(string path)
         {
+            /* ExportDataFromBackupFile function: 
+            *** background: the function imports all the data into the array from the backup file.
+            *                and returns an array of necessary data
+            *** input: "Path", path to the backup file.
+            *** Actions: 
+            *** output: "NewBackupArray", an array whose first cell is the number of logs of all customers. 
+            *                             and the other cell exports into the string file backup
+            */
+
             var logFile1 = File.ReadAllLines(path);
             var BackupList1 = new List<string>(logFile1);
             string[] BackupStringToParts = BackupList1.ToArray();
@@ -1922,82 +1326,16 @@ namespace CustomersBox
             string[] NewBackupArray = CustomersData.Split('|');
             return NewBackupArray;
         }
-        /*static void UpdateBackupFile_1(string SourcePath, string BackupPath)
-        {
-            //int AccProb = 0;
-            if (!System.IO.File.Exists(BackupPath))
-            {
-                int NameIndex = BackupPath.IndexOf("BACKUP_");
-                string BackupFolderPath = BackupPath.Substring(0, NameIndex);
-                System.IO.Directory.CreateDirectory(BackupFolderPath);
-                using (StreamWriter sw = File.CreateText(BackupPath))
-                {
-                    sw.WriteLine("");
-                }
-            }
-            int j = 0;
-            List<string> temp = new List<string>(); // temporary list
-            List<string> AllCustomers = new List<string>(); // temporary list
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
-            string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
-            int PathSize = PathSystemsName.Length; //length of path
-            foreach (string dir in dirsSystemsTypes)//get phantom name (Phantom3, Phantom 4 Pro ...)
-            {
-                if (System.IO.Directory.GetDirectories(dir).Length == 0)
-                {
-
-                }
-                else
-                {
-                    temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
-                    AllCustomers.AddRange(temp);
-                    j++;
-                    temp.Clear();
-                }
-            }
-
-            File.WriteAllText(BackupPath, String.Empty);
-            Microsoft.Office.Interop.Excel.Application excel2 = new Microsoft.Office.Interop.Excel.Application();
-            Microsoft.Office.Interop.Excel.Workbook sheet2 = excel2.Workbooks.Open(SourcePath);
-            Microsoft.Office.Interop.Excel.Worksheet x2 = excel2.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
-            try
-            {
-                List<string> TrigCountList = new List<string>();
-                long LastRowofColA = x2.Cells[x2.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-                for (int i = 2; i <= LastRowofColA; i++)
-                {
-                    int NumOfLogsPerCustomer = Directory.GetFiles(AllCustomers[i-2], "*", SearchOption.AllDirectories).Count()-1;
-                    if ((x2.Cells[i, 9].Value == null) || (x2.Cells[i, 9].Value == ""))
-                        TrigCountList.Add((((Microsoft.Office.Interop.Excel.Range)x2.Cells[i, 2]).Value) + ", 0, " + NumOfLogsPerCustomer);
-                    else
-                        TrigCountList.Add((((Microsoft.Office.Interop.Excel.Range)x2.Cells[i, 2]).Value) + ", " + ((Microsoft.Office.Interop.Excel.Range)x2.Cells[i, 9]).Value + ", " + NumOfLogsPerCustomer);
-                    string g = TrigCountList[i - 2].ToString();
-                    
-                    File.AppendAllLines(BackupPath, new[] { g });
-                }
-
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine("There was a PROBLEM with Backup file!");
-            }
-            finally
-            {
-                excel2.Quit();
-                //sheet2.Close();
-                if (excel2 != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excel2);
-                if (sheet2 != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet2);
-                // Empty variables
-                excel2 = null;
-                sheet2 = null;
-                // Force garbage collector cleaning
-                GC.Collect();
-            }
-        }*/
         static bool CheckPyroTrigLog(string FileLog,string LOG_path)
         {
+            /* CheckPyroTrigLog function: 
+            *** background:
+            *** input: "FileLog", string of all text from backup file.
+            *          "LOG_path", path to log.
+            *** Actions: 
+            *** output: "TrueTrig", true\false according to the log test.
+            */
+
             List<string> CurrentLineToParts = new List<string>();
             bool TrueTrig = false;
             int BaroColumnIndex = 11;//defult index
@@ -2042,29 +1380,48 @@ namespace CustomersBox
                     }
                 }
             }
-            return TrueTrig;    
+            return TrueTrig;
         }
         static string IsraelClock()
         {
+            /* IsraelClock function: 
+            *** background: 
+            *** input: NaN
+            *** Actions: 
+            *** output: "time", Text of the date and time according to local time.
+            */
+
             string date = DateTime.Now.ToShortDateString();
             var dateToday = DateTime.Now;
-            string Time = dateToday.Hour + ":" + dateToday.Minute;
+            int hour = dateToday.Hour;
+            string Hour = "",Minute="";
+            int minute = dateToday.Minute;
+            if (Convert.ToInt32(dateToday.Hour) < 10)
+                Hour = "0" + hour;
+            else
+                Hour = hour.ToString();
+            if (Convert.ToInt32(dateToday.Minute) < 10)
+                Minute = "0" + minute;
+            else
+                Minute = minute.ToString();
+
+            string Time = Hour + ":" + Minute;
             string time = date + " " + Time;
-            /*string time = DateTime.UtcNow.ToString();
-            string hour = (time.Substring(11, 2));
-            double DoubleHour = Convert.ToDouble(hour) + 2;
-            string part1 = time.Substring(0, 10);
-            string part2 = DoubleHour.ToString();
-            string part3 = time.Substring(13, 6);
-            time = part1 + " " + part2 + part3;*/
+
             return time;
         }
         static string LoadCsvFile(string filePath)
         {
+            /* LoadCsvFile function: 
+            *** background: The function imports a log file into string.
+            *** input: "filePath", path to log file.
+            *** Actions: 
+            *** output: "myStringOutput", all the text from log into string.
+            */
+
             int i = 0;
             string line = "";
             var reader = new StreamReader(File.OpenRead(filePath));
-            //Scanner scanner = new Scanner(File.OpenRead(filePath));
             List<string> searchList = new List<string>();
             do
             {
@@ -2081,7 +1438,16 @@ namespace CustomersBox
         }
         private static void SendMailWithAttch(string[] MailtoSend, string MailSubject, string MailBody, string dir)
         {
-            //MailSubject = "Test! " + MailSubject;
+            /* SendMailWithAttch function: 
+            *** background:
+            *** input: "MailtoSend", recipients list for receiving emails.
+            *          "MailSubject", subject of the email.
+            *          "MailBody", Text that will appear in the body of the email.
+            *          "dir", a path to the file to be added to the email.
+            *** Actions: 
+            *** output: NaN.
+            */
+
             MailMessage mail = new MailMessage();
             SmtpClient SmtpServer = new SmtpClient("smtp.gmail.com");
 
@@ -2102,7 +1468,15 @@ namespace CustomersBox
         }
         private static void SendMailWithoutAttch(string[] MailtoSend, string MailSubject, string MailBody)
         {
-            //MailSubject = "Test! " + MailSubject;
+            /* SendMailWithoutAttch function: 
+            *** background:
+            *** input: "MailtoSend", recipients list for receiving emails.
+            *          "MailSubject", subject of the email.
+            *          "MailBody", Text that will appear in the body of the email.
+            *** Actions: 
+            *** output: NaN.
+            */
+
             MailMessage mail = new MailMessage();
             SmtpClient SmtpServer = new SmtpClient("smtp.gmail.com");
 
