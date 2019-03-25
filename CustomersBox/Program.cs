@@ -96,6 +96,8 @@ namespace CustomersBox
                         Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
                         NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);//Checks if recent log files include parachute openings. Each parachute activation will send an email to the mailing list.
                         NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);//Checks if recent log files include invalid logs. Each log has identified problems will send an email to the mailing list
+                        if(!NewAccProblem&&!NewPYRO)
+                            UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
                     }
                     NewCUSTOMER = CheckForNewCustomers(BackupPath, MailtoSend);//Checking if a new customer has been identified in the box. Each new customer identified in the BOX will send an email to the mailing list.
                     if (NewCUSTOMER)
@@ -1010,11 +1012,6 @@ namespace CustomersBox
                 GC.Collect();
                 UpdateExcelFiles(Source, BackupPath, PhantomPath);
             }
-            if (!System.IO.File.Exists(BackupPath))
-            {
-                UpdateExcelFiles(Source, BackupPath, PhantomPath);
-            }
-
         }
         static string UpdateExcelFiles(string SourcePath, string BackupPath,string PhantomPath)
         {
