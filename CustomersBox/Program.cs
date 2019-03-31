@@ -125,7 +125,7 @@ namespace CustomersBox
                     string DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
                     Console.WriteLine(IsraelClock() + ": Daily Update!");//
                     string TextBodyMail = "\r\nYesterday, " + DailyData(false) + " new customers were identidied" +
-                        "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers[0];
+                        "\r\nThe total number of customers, as of this time " + DailyUpdateCustomers;
                     SendCopyExcel(MailtoSend, TextBodyMail,ExcelPath);
                 }
                 if ((((currentHour == 0) && (currentMinute > 10))) && !UPdateTODAY)
@@ -875,7 +875,8 @@ namespace CustomersBox
             string Firmware;
             string City = "";
             string Country = "";
-
+            string FirstDateConn = "";
+            string LastDateConn = "";
             string PlatformType = new DirectoryInfo(System.IO.Path.GetDirectoryName(path)).Name;
             var CusINFO = new DirectoryInfo(path);
             string SerialNamber = CusINFO.Name;
@@ -897,20 +898,23 @@ namespace CustomersBox
                 if (SecondTRY)
                 {
                     SecondTRY = false;
-                    Thread.Sleep(20000);
+                    Thread.Sleep(10000);
                     goto SecTRY;
                 }
                 Firmware = "unknown";
                 City = "unknown";
                 Country = "unknown";
+                FirstDateConn = "";
+                LastDateConn = "";
+                goto EndCuzEmptyFolder;
             }
             for (int k1 = 0; k1 < DatesLOGs.Length; k1++)
             {
                 dateLOGs[k1] = new DirectoryInfo(DatesLOGs[k1]).Name;
                 dateLOGs[k1] = DatesLOGs[k1].Split('_').First();
             }
-            string FirstDateConn = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
-            string LastDateConn = dateLOGs[dateLOGs.Length-1].Replace('-', '/');// 6. Date of Last connection
+            FirstDateConn = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
+            LastDateConn = dateLOGs[dateLOGs.Length-1].Replace('-', '/');// 6. Date of Last connection
             //string[] Logs = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
             string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog = "";
             bool SMAtextOK = false, FWBool = true;
@@ -955,6 +959,7 @@ namespace CustomersBox
             {
                 Firmware = "unknown";
             }
+            EndCuzEmptyFolder:
             string[] CustomerData = { SerialNamber, Country, City, PlatformType, Firmware, FirstDateConn, LastDateConn };
             return CustomerData;
 
