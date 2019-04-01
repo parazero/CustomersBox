@@ -25,6 +25,7 @@ namespace CustomersBox
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyLogs = @"C:\Users\User\Documents\Analayzed Customers box\TempFolder\";
             string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_NumOfLog.txt";
+            
             CreateFilesIfNotExits(ExcelPath, BackupPath, PhantomPath);
             {
             WrongInput1:
