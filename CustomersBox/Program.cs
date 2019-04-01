@@ -25,7 +25,7 @@ namespace CustomersBox
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
             string PathToCopyLogs = @"C:\Users\User\Documents\Analayzed Customers box\TempFolder\";
             string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_NumOfLog.txt";
-            
+
             CreateFilesIfNotExits(ExcelPath, BackupPath, PhantomPath);
             {
             WrongInput1:
@@ -1088,7 +1088,7 @@ namespace CustomersBox
                     FullPathList.Add(FullPath);
 
                     //You'll remove a note if you'd like to investigate a specific customer
-                    /*if (SerialNamber== "0017002C3037510A32363832") 
+                    /*if (SerialNamber== "002C00343037510B32363832") 
                     { }*/
 
                     List<string> y = new List<string>();
@@ -1295,7 +1295,7 @@ namespace CustomersBox
                 System.IO.Directory.CreateDirectory(BackupFolderPath);
                 using (StreamWriter sw = File.CreateText(Path))
                 {
-                    sw.Write(NumOfTotalLogs);
+                    sw.Write(NumOfTotalLogs + "|");
                     for (int i=0;  i<ID.Length;i++)
                         sw.WriteLine(ID[i] + ", " + LogCount[i] + ", " + FullPathList[i]);
                 }
