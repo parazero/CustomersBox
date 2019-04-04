@@ -97,8 +97,6 @@ namespace CustomersBox
                         Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
                         NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);//Checks if recent log files include parachute openings. Each parachute activation will send an email to the mailing list.
                         NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);//Checks if recent log files include invalid logs. Each log has identified problems will send an email to the mailing list
-                        if(!NewAccProblem&&!NewPYRO)
-                            UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
                     }
                     NewCUSTOMER = CheckForNewCustomers(BackupPath, MailtoSend);//Checking if a new customer has been identified in the box. Each new customer identified in the BOX will send an email to the mailing list.
                     if (NewCUSTOMER)
@@ -115,7 +113,7 @@ namespace CustomersBox
                         Console.WriteLine(IsraelClock() + ": ... No new updates");
 
                     resetStopWatch1.Restart();
-                    if ((NewCUSTOMER) || (NewPYRO) || (NewAccProblem))
+                    if (((NewCUSTOMER) || (NewPYRO) || (NewAccProblem))|| (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs))
                         UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
 
                     NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
@@ -919,7 +917,7 @@ namespace CustomersBox
             //string[] Logs = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
             string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog = "";
             bool SMAtextOK = false, FWBool = true;
-            for (int k1 = Logs.Length; k1 > 1; k1--)
+            for (int k1 = Logs.Length; k1 > 0; k1--)
             {
                 TextFromLog = LoadCsvFile(Logs[k1 - 1]);
                 if (TextFromLog.Contains("!Application................: Start") && TextFromLog.Contains("Country:") && !SMAtextOK)
