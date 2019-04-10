@@ -938,7 +938,7 @@ namespace CustomersBox
                 TextFromLogSelect = TextFromLog;
             int cityIndexStart = TextFromLogSelect.IndexOf("city:");
             int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
-            if (TextFromLogSelect.Substring(0, cityIndexEnd - 1) == "null")
+            if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1) == "null")||(cityIndexStart==-1)||(cityIndexEnd==-1))
             {
                 City = "unknown";
                 Country = "unknown";
@@ -1165,7 +1165,7 @@ namespace CustomersBox
                         TextFromLogSelect = TextFromLog;
                     int cityIndexStart = TextFromLogSelect.IndexOf("city:");
                     int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
-                    if (TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))
+                    if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))||(cityIndexEnd==-1)||(cityIndexStart==-1))
                     {
                         City = "unknown";
                         Country = "unknown";
