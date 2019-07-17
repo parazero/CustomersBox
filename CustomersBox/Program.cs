@@ -19,6 +19,8 @@ namespace CustomersBox
     {
         static void Main(string[] args)
         {
+            ///
+
             bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false;
             string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com", "nadavk@parazero.com", "avil@parazero.com" };
             string ExcelPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary.xlsx";
