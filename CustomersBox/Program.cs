@@ -11,6 +11,7 @@ using System.Net.Mail;
 using System.Reflection;
 using System.IO.Compression;
 using Microsoft.Office.Interop.Excel;
+using Newtonsoft.Json;
 
 
 namespace CustomersBox
@@ -20,13 +21,15 @@ namespace CustomersBox
         static void Main(string[] args)
         {
             ///
-
-            bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false;
-            string[] MailtoSend = { "zoharb@parazero.com", "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com", "nadavk@parazero.com", "avil@parazero.com" };
+            
+            bool UPdateTODAY = true, NewPYRO = false, NewAccProblem = false, NewCUSTOMER = false, Mavic_NewCUSTOMER = false;
+            string[] MailtoSend = { "yuvalg@parazero.com", "boazs@parazero.com", "amir@parazero.com", "uris@parazero.com", "nadavk@parazero.com", "avil@parazero.com" };
             string ExcelPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary.xlsx";
             string PhantomPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            string MavicPath = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Mavic\";
             string PathToCopyLogs = @"C:\Users\User\Documents\Analayzed Customers box\TempFolder\";
             string BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\BACKUP_ID_NumOfLog.txt";
+            string Mavic_BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\Mavic_BACKUP_ID_NumOfLog.txt";
 
             CreateFilesIfNotExits(ExcelPath, BackupPath, PhantomPath);
             {
@@ -89,19 +92,33 @@ namespace CustomersBox
                 int currentHour = local.Hour;
                 int currentMinute = local.Minute;
                 ts1 = resetStopWatch1.Elapsed;
-                if (ts1.TotalMinutes >= 3)
+                if (ts1.TotalMinutes >= 5)
                 {
                     Console.WriteLine(IsraelClock() + ": Checking for updates");
                     int NumOfTotalLogs = Directory.GetFiles(PhantomPath, "LOG_*", SearchOption.AllDirectories).Count(); //Checks how many total logs there are in BOX
-                    if (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs) //Checks whether there is a new log
+                    int Num_of_mavic_logs = Directory.GetFiles(MavicPath, "LOG_*", SearchOption.AllDirectories).Count();
+                    //int Sum_of_logs = NumOfTotalLogs + Num_of_mavic_logs;
+                    if ((Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs) ||
+                        (Convert.ToInt32(ExportDataFromBackupFile(Mavic_BackupPath)[0]) < Num_of_mavic_logs))//Checks whether there is a new log
                     {
                         Thread.Sleep(1500);
                         Console.WriteLine(IsraelClock() + ": A new log has been detected, checking for updates");
-                        NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);//Checks if recent log files include parachute openings. Each parachute activation will send an email to the mailing list.
-                        NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);//Checks if recent log files include invalid logs. Each log has identified problems will send an email to the mailing list
+                        if(Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs)
+                        {
+                            NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);
+                            NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);
+                        }
+                        else
+                        {
+                            NewPYRO = CheckForNewPyroTriggerPerCustomer(Mavic_BackupPath, MailtoSend);
+                            NewAccProblem = CheckForNewAccelerometerProblem(Mavic_BackupPath, MailtoSend);
+                        }
+                        //NewPYRO = CheckForNewPyroTriggerPerCustomer(BackupPath, MailtoSend);//Checks if recent log files include parachute openings. Each parachute activation will send an email to the mailing list.
+                        //NewAccProblem = CheckForNewAccelerometerProblem(BackupPath, MailtoSend);//Checks if recent log files include invalid logs. Each log has identified problems will send an email to the mailing list
                     }
                     NewCUSTOMER = CheckForNewCustomers(BackupPath, MailtoSend);//Checking if a new customer has been identified in the box. Each new customer identified in the BOX will send an email to the mailing list.
-                    if (NewCUSTOMER)
+                    Mavic_NewCUSTOMER = CheckForNewCustomers(Mavic_BackupPath, MailtoSend);
+                    if (NewCUSTOMER || Mavic_NewCUSTOMER)
                     {
                         Console.WriteLine(IsraelClock() + ": A new customer was detected, a mail was sent and the Excel file was updated");
                     }
@@ -111,16 +128,16 @@ namespace CustomersBox
                     if (NewAccProblem)
                         Console.WriteLine(IsraelClock() + ": A new log with an accelerometer problem was detected, mail sent and Excel file updated");
 
-                    if ((!NewCUSTOMER) && (!NewPYRO) && (!NewAccProblem))
+                    if ((!NewCUSTOMER) && (!NewPYRO) && (!NewAccProblem) && (!Mavic_NewCUSTOMER))
                         Console.WriteLine(IsraelClock() + ": ... No new updates");
 
                     resetStopWatch1.Restart();
-                    if (((NewCUSTOMER) || (NewPYRO) || (NewAccProblem))|| (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs))
+                    if (((NewCUSTOMER) || (Mavic_NewCUSTOMER) || (NewPYRO) || (NewAccProblem))|| (Convert.ToInt32(ExportDataFromBackupFile(BackupPath)[0]) < NumOfTotalLogs))              
                         UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
 
-                    NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false;
+                    NewPYRO = false; NewAccProblem = false; NewCUSTOMER = false; Mavic_NewCUSTOMER = false;
                 }
-                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 10))) && UPdateTODAY)//Send daily status to the mailing list, every day at midnight.
+                if (((currentHour == 0) && ((currentMinute >= 0) && (currentMinute <= 0))) && UPdateTODAY)//Send daily status to the mailing list, every day at midnight.
                 {
                     UPdateTODAY = false;
                     string DailyUpdateCustomers = UpdateExcelFiles(ExcelPath, BackupPath, PhantomPath);
@@ -229,7 +246,7 @@ namespace CustomersBox
             long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
             oRng = (Excel.Range)x.Range["B1:M" + LastRowofColA];
             oRng.Sort(oRng.Columns[7, Type.Missing], Excel.XlSortOrder.xlDescending, // the first sort key Column 1 for Range
-          oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
+            oRng.Columns[1, Type.Missing], Type.Missing, Excel.XlSortOrder.xlDescending,// second sort key Column 6 of the range
                 Type.Missing, Excel.XlSortOrder.xlDescending,  // third sort key nothing, but it wants one
                 Excel.XlYesNoGuess.xlGuess, Type.Missing, Type.Missing,
                 Excel.XlSortOrientation.xlSortColumns, Excel.XlSortMethod.xlPinYin,
@@ -603,7 +620,7 @@ namespace CustomersBox
             }
             return countCustomerToday;
         } 
-        static void EditExcel(string Source)
+        static void EditExcel(_Worksheet worksheet, string Source, int sheet_number)
         {
             /* EditExcel function: 
              *** background:
@@ -614,44 +631,48 @@ namespace CustomersBox
 
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(Source);
-            Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+            //Microsoft.Office.Interop.Excel._Worksheet x = null;
+            //Microsoft.Office.Interop.Excel._Worksheet Mavic_Sheet = null;
+            worksheet = (Microsoft.Office.Interop.Excel._Worksheet)sheet1.Sheets[sheet_number];
+            //Mavic_Sheet = (Microsoft.Office.Interop.Excel._Worksheet)sheet1.Sheets[2];
 
-            long LastRowofColA = x.Cells[x.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
-            x.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+
+            long LastRowofColA = worksheet.Cells[worksheet.Rows.Count, 1].End(Excel.XlDirection.xlUp).Row;
+            worksheet.Range["A1:Z" + LastRowofColA].EntireRow.Font.Color = XlRgbColor.rgbBlack;
             for (int i = 2; i <= LastRowofColA; i++)
             {
                 try
                 {
-
-                    if (Convert.ToInt32(x.Cells[i, 13].Value) > 0)
-                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
+                    if (Convert.ToInt32(worksheet.Cells[i, 13].Value) > 0)
+                        worksheet.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbRed;
                     else
-                        x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                        worksheet.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
                 }
                 catch
                 {
-                    x.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
+                    worksheet.Rows[i].EntireRow.Font.Color = XlRgbColor.rgbBlack;
                 }
                 try
                 {
-                    if (Convert.ToInt32(x.Cells[i, 10].Value) > 0)
+                    if (Convert.ToInt32(worksheet.Cells[i, 10].Value) > 0)
                     {
-                        x.Cells[i, 10].Font.Bold = true;
-                        x.Cells[i, 10].Font.Underline = true;
+                        worksheet.Cells[i, 10].Font.Bold = true;
+                        worksheet.Cells[i, 10].Font.Underline = true;
                     }
                     else
                     {
-                        x.Cells[i, 10].Font.Bold = false;
-                        x.Cells[i, 10].Font.Underline = false;
+                        worksheet.Cells[i, 10].Font.Bold = false;
+                        worksheet.Cells[i, 10].Font.Underline = false;
                     }
                 }
                 catch
                 {
-                    x.Cells[i, 10].Font.Bold = false;
-                    x.Cells[i, 10].Font.Underline = false;
+                    worksheet.Cells[i, 10].Font.Bold = false;
+                    worksheet.Cells[i, 10].Font.Underline = false;
                 }
             }
             sheet1.Save();
+            sheet1.Close();
             excel.Quit();
             //sheet2.Close();
             if (excel != null)
@@ -706,12 +727,11 @@ namespace CustomersBox
                                     "\r\nFirmware version: " + CusData[4] +
                                     "\r\nFirst Connaction at: " + CusData[5] +
                                     "\r\nLast Connaction at: " + CusData[6] +
+                                    "\r\nASTM Customer:" + CusData[7] +
                                     "\r\n\nPath folder: " + CustomerLogPath;
                             SendMailWithAttch(MailtoSend, "Accelerometer problem " + IsraelClock(), TextBodyMail, Logs[j]);
                         }
-
-                    }
-                        
+                    }                        
                 }
             }
             return StatusNewLogs;
@@ -757,12 +777,11 @@ namespace CustomersBox
                                     "\r\nFirmware version: " + CusData[4] +
                                     "\r\nFirst Connaction at: " + CusData[5] +
                                     "\r\nLast Connaction at: " + CusData[6] +
+                                    "\r\nASTM Customer:" + CusData[7] +
                                     "\r\n\nPath folder: " + CustomerLogPath;
                             SendMailWithAttch(MailtoSend, "Parachute opening detected " + IsraelClock(), TextBodyMail, Logs[j]);
                         }
-
                     }
-
                 }
             }
             return StatusNewLogs;
@@ -787,8 +806,18 @@ namespace CustomersBox
             List<string> temp = new List<string>(); // temporary list
             List<string> AllCustomers = new List<string>(); // temporary list
             List<List<string>> CustomersPath = new List<List<string>>(); // path to customers folders
-            string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            string PathSystemsName = "";
+            if (BackupPath.Contains("Mavic"))
+            {
+                PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Mavic\";
+            }
+            else
+            {
+                PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            }
             string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
+            //string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            //string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
             int PathSize = PathSystemsName.Length; //length of path
             foreach (string dir in dirsSystemsTypes)//get phantom name (Phantom3, Phantom 4 Pro ...)
             {
@@ -824,6 +853,7 @@ namespace CustomersBox
                                 "\r\nType Drone: " + NewCusData[3] +
                                 "\r\nFirmware version: " + NewCusData[4] +
                                 "\r\nFirst Connaction at: " + NewCusData[5] +
+                                "\r\nASTM Customer:" + NewCusData[7] +
                                 "\r\n\nPath folder: " + NewCusToMail;
                         SendMailWithoutAttch(MailtoSend, "A new customer has been detected " + IsraelClock(), TextBodyMail);
                         NewCustomer = true;
@@ -832,7 +862,6 @@ namespace CustomersBox
                         if (CountLastCheck >= CountCustomers)
                             break;
                     }
-
                 }
                 if (CompareID)
                 {
@@ -843,17 +872,16 @@ namespace CustomersBox
                              "\r\nType Drone: " + NewCusData[3] +
                              "\r\nFirmware version: " + NewCusData[4] +
                              "\r\nFirst Connaction at: " + NewCusData[5] +
+                             "\r\nASTM Customer:" + NewCusData[6] +
                              "\r\n\nPath folder: " + NewCusToMail;
                      SendMailWithoutAttch(MailtoSend, "A new customer has been detected " + IsraelClock(), TextBodyMail);
                     NewCustomer = true;
-                }
-                    
+                }                   
             }
             else
             {
                 NewCustomer = false;
             }
-
             return NewCustomer;
         }
         static string[] GetDataAboutNewCustomer(string path)
@@ -871,6 +899,8 @@ namespace CustomersBox
              *                                                                            last sync date.
              */
 
+            string Mavic_ASTM_Licenses_Folder_Path = @"C:\Users\User\Box Sync\ASTM Licenses\Mavic";
+            string ASTM_Licences_Folder_Path = @"C:\Users\User\Box Sync\ASTM Licenses\Phantom";
             bool SecondTRY = true;
             SecTRY:
             string Firmware;
@@ -881,6 +911,12 @@ namespace CustomersBox
             string PlatformType = new DirectoryInfo(System.IO.Path.GetDirectoryName(path)).Name;
             var CusINFO = new DirectoryInfo(path);
             string SerialNamber = CusINFO.Name;
+            string Is_ASTM = "";
+            if (path.Contains("Mavic"))
+                Is_ASTM = Is_ASTM_system_activated(Mavic_ASTM_Licenses_Folder_Path, SerialNamber);
+            else
+                Is_ASTM = Is_ASTM_system_activated(ASTM_Licences_Folder_Path, SerialNamber);
+
             List<string> y = new List<string>();
             List<string> x = new List<string>();
             DirectoryInfo directoryInfo = new DirectoryInfo(path);
@@ -940,16 +976,26 @@ namespace CustomersBox
                 TextFromLogSelect = TextFromLog;
             int cityIndexStart = TextFromLogSelect.IndexOf("city:");
             int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
-            if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1) == "null")||(cityIndexStart==-1)||(cityIndexEnd==-1))
+            if ((cityIndexEnd==-1) || (cityIndexStart==-1))
             {
-                City = "unknown";
-                Country = "unknown";
+                City = "";
+                Country = "";
             }
             else
             {
                 City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
                 Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
             }
+            //if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1) == "null")||(cityIndexStart==-1)||(cityIndexEnd==-1))
+            //{
+             //   City = "unknown";
+            //    Country = "unknown";
+            //}
+            //else
+            //{
+            //    City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
+             //   Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
+            //}
             int VerIndex = TextFromLogSelect.IndexOf("SmartAir Nano");
             try
             {
@@ -961,7 +1007,7 @@ namespace CustomersBox
                 Firmware = "unknown";
             }
             EndCuzEmptyFolder:
-            string[] CustomerData = { SerialNamber, Country, City, PlatformType, Firmware, FirstDateConn, LastDateConn };
+            string[] CustomerData = { SerialNamber, Country, City, PlatformType, Firmware, FirstDateConn, LastDateConn, Is_ASTM };
             return CustomerData;
 
         }
@@ -980,8 +1026,8 @@ namespace CustomersBox
             if (!System.IO.File.Exists(Source))
             {
                 Console.WriteLine(IsraelClock() + " Create an excel file of the SA2 customers summary, at:\n" + Source + "\n");
-                Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
-                Microsoft.Office.Interop.Excel.Workbook sheet;
+                Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application(); // Create new Applicaion
+                Microsoft.Office.Interop.Excel.Workbook sheet;                                                       // Create new Workbook
                 excel.Visible = false;
                 excel.DisplayAlerts = false;
                 sheet = excel.Workbooks.Add(Type.Missing);
@@ -995,22 +1041,66 @@ namespace CustomersBox
                 sheet = null;
 
                 excel = new Microsoft.Office.Interop.Excel.Application();
-                sheet = excel.Workbooks.Open(Source);
-                Microsoft.Office.Interop.Excel.Worksheet x1 = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+                var workbook = excel.Workbooks.Open(Source);
+                Excel._Worksheet worksheet = excel.ActiveSheet;
+                worksheet.Name = "Mavic";
+                worksheet.Range["A1:Z" + worksheet.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                worksheet.Range["A1:Z1"].EntireRow.Font.Bold = true;
+                Excel._Worksheet phatnom_sheet = (Excel.Worksheet)excel.Worksheets.Add();
+                //worksheet = (Excel.Worksheet)excel.Worksheets.Add();
+                phatnom_sheet.Name = "Phantom";
+                phatnom_sheet.Range["A1:Z" + phatnom_sheet.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                phatnom_sheet.Range["A1:Z1"].EntireRow.Font.Bold = true;
+                //phatnom_sheet.Range["A1:Z1"].NumberFormat = "@";
+                //phatnom_sheet.Range["A1:Z" + phatnom_sheet.Rows.Count].NumberFormat = "@";
+                //phatnom_sheet.Range["A1:Z" + phatnom_sheet.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+
+
+                workbook.Save();
+                workbook.Close();
+                
+                //sheet = excel.Workbooks.Open(Source);
+                //Excel.Worksheet ws = excel.Sheets.Add(After: excel.Sheets[excel.Sheets.Count]);
+                //ws.Name = "mavic";
+                //workbook.Save();
+                //workbook.Close();
+
+                //Microsoft.Office.Interop.Excel.Worksheet x1 = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+                //x1.Range["A1:Z" + x1.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                //x1.Range["A1:Z1"].EntireRow.Font.Bold = true;
+
+
+                //Microsoft.Office.Interop.Excel.Worksheet mavic_sheet = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+                //mavic_sheet.Range["A1:Z1"].NumberFormat = "@";
+                //mavic_sheet.Range["A1:Z" + mavic_sheet.Rows.Count].NumberFormat = "@";
+                //mavic_sheet.Range["A1:Z" + mavic_sheet.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                //if(mavic_sheet != null && x1 != null)
+
+
                 excel.DefaultSheetDirection = (int)Excel.Constants.xlLTR; //define excel page left to right
-                x1.Range["A1:Z1"].NumberFormat = "@";
-                x1.Range["A1:Z"+ x1.Rows.Count].NumberFormat = "@";
+                //mavic_sheet.Range["A1:Z1"].NumberFormat = "@";
+                //mavic_sheet.Range["A1:Z" + mavic_sheet.Rows.Count].NumberFormat = "@";
+
                 /* x1.Range["H2:H"+ x1.Rows.Count].NumberFormat = "dd/mm/yyyy";
                 x1.Range["I1:Z" + x1.Rows.Count].NumberFormat = "@"; */
+
+                /*mavic_sheet.Range["A1:Z" + mavic_sheet.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                mavic_sheet.Range["A1:Z1"].EntireRow.Font.Bold = true;
                 x1.Range["A1:Z" + x1.Rows.Count].HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
                 x1.Range["A1:Z1"].EntireRow.Font.Bold = true;
-                
-                sheet.Save();
-                sheet.Close();
+                x1.Name = "Phantom";
+                mavic_sheet.Name = "Mavic";*/
+
+                //workbook.Save();
+                //workbook.Close();
+                //sheet.Save();
+                //sheet.Close();
                 if (excel != null)
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
                 if (sheet != null)
+                {
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
+                }
                 // Empty variables
                 excel = null;
                 sheet = null;
@@ -1036,192 +1126,449 @@ namespace CustomersBox
             bool FWBool = true;
             bool SMAtextOK = false;
             List<List<string>> CustomersSummary = new List<List<string>>();//Final List to excel
+            List<List<string>> Mavic_CustomersSummary = new List<List<string>>();//Final List to excel
+
             List<List<string>> CustomersPath = new List<List<string>>(); // path to customers folders
+            List<List<string>> Mavic_CustomersPath = new List<List<string>>(); // path to Mavic customers folders
+
             List<string> temp = new List<string>(); // temporary list
+            List<string> Mavic_temp = new List<string>(); // temporary list
+
             List<string> SerialNumberPath = new List<string>();
+            List<string> Mavic_SerialNumberPath = new List<string>();
+
             List<string> ID_Customers = new List<string>(); // A List of IDs customers to backup file.
+            List<string> Mavic_ID_Customers = new List<string>(); // A List of IDs customers to backup file.
+
             List<string> LogCountPerCustomer = new List<string>(); // A list of the parachute openings of each customer.
+            List<string> Mavic_LogCountPerCustomer = new List<string>(); // A list of the parachute openings of each customer.
+
             List<string> FullPathList = new List<string>(); // A list of each customer's path.
+            List<string> Mavic_FullPathList = new List<string>(); // A list of each customer's path.
+
 
             List<string> HeadersExcel = new List<string>() { "#", "Serial Number","Platform type",
                 "Firmware version","Country", "City", "Date of first connection", "Date of last sync",
-                "Total Logs","Trigger count", "Trigger reason","Number of flights","Number of faulty logs"};
-
+                "Total Logs","Trigger count", "Trigger reason","Number of flights","Number of faulty logs",
+                "ASTM License"};
             
-            int j = 0, CountCustomers = 0;
+            int q = 0, CountCustomers = 0;
+            int Count_MavicCustomers = 0;
+            string Mavic_ASTM_Licenses_Folder_Path = @"C:\Users\User\Box Sync\ASTM Licenses\Mavic";
+            string Mavic_BackupPath = @"C:\Users\User\Documents\Analayzed Customers box\SafeAir2 customer summary BACKUP\Mavic_BACKUP_ID_NumOfLog.txt";
+            string Phantom_ASTM_Licenses_Folder_Path = @"C:\Users\User\Box Sync\ASTM Licenses\Phantom";
             string PathSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Phantom\";
+            string MavicSystemsName = @"C:\Users\User\Box Sync\Log\SmartAir Nano\Mavic\";
             string[] dirsSystemsTypes = Directory.EnumerateDirectories(PathSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray();//path to type of phatom folders
+            string[] dirToMavicSystems = Directory.EnumerateDirectories(MavicSystemsName, "*", SearchOption.TopDirectoryOnly).ToArray(); // Path to mavic logs
+
             int PathSize = PathSystemsName.Length; //length of path
+            int MavicPathSize = MavicSystemsName.Length;
+            List<string[]> AllSystemsTypes = new List<string[]>();
+            AllSystemsTypes.Add(dirsSystemsTypes);
+            AllSystemsTypes.Add(dirToMavicSystems);
+            List<string[]> AllDroneTypes = new List<string[]>();
+            AllDroneTypes.Add(dirsSystemsTypes);
+            AllDroneTypes.Add(dirToMavicSystems);
+            int count_drone_type = 0;
 
-            foreach (string dir in dirsSystemsTypes)
+            foreach (var type in AllDroneTypes)
             {
-                if (System.IO.Directory.GetDirectories(dir).Length != 0)
+                q = 0;
+                if (type[0].Contains("Mavic"))
+                    count_drone_type++;
+                // Need to check in which drone type we are now
+                if(count_drone_type == 1) // Meaning we are now in the Mavic folder
                 {
-                    temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
-                    string[] tempstr = temp.ToArray();
-                    CountCustomers = CountCustomers + tempstr.Length;
-                    CustomersPath.Insert(j, tempstr.ToList());
-                    j++;
-                    temp.Clear();
+                    foreach (string dir in dirToMavicSystems) // This loop counts the number of systems based on the number of unempty folders in each phatom type 
+                    {                                        // The number of systems will be stored in the CusomerPath array
+                        if (System.IO.Directory.GetDirectories(dir).Length != 0)
+                        {
+                            temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
+                            string[] tempstr = temp.ToArray();
+                            Count_MavicCustomers = Count_MavicCustomers + tempstr.Length;
+                            Mavic_CustomersPath.Insert(q, tempstr.ToList());
+                            q++;
+                            temp.Clear();
+                        }
+                    }
+                    Numb = 0;
+                    for (int i = 0; i < Mavic_CustomersPath.Count; i++)
+                    {                        
+                        int NumberFlights = 0, BadLog = 0;
+                        string Firmware;
+                        string City = "";
+                        string Country = "";
+                        Boolean is_system_ASTM = false;
+                        string ASTM_Serial = "";
+                        string Mavic_Model = new DirectoryInfo(System.IO.Path.GetDirectoryName(Mavic_CustomersPath[i][0])).Name;//7. name phantom type
+                        string[] Mavic_Path = Directory.EnumerateDirectories(MavicSystemsName + Mavic_Model, "*", SearchOption.TopDirectoryOnly).ToArray(); // Store the path to all the logs in the folder
+
+                        for (int k = 0; k < Mavic_CustomersPath[i].Count; k++) // This loop iterates over all of the folders inside the drone type folder
+                        {
+                            string TrigReason = "";
+                            int PyroOnCount = 0;
+                            FWBool = true;
+                            SMAtextOK = false;
+                            Numb++;
+                            var Mavic_CusINFO = new DirectoryInfo(Mavic_Path[k]);
+                            string FullPath = Mavic_CusINFO.Parent.FullName;
+                            string SerialNamber = Mavic_CusINFO.Name; // 2.SerialNumber
+                            string is_system_ASTM_string = "";
+                            is_system_ASTM = Check_if_this_system_is_ASTM(Mavic_ASTM_Licenses_Folder_Path, SerialNamber);
+                            ASTM_Serial = Is_ASTM_system_activated(Mavic_ASTM_Licenses_Folder_Path, SerialNamber);
+                            if (is_system_ASTM == true)
+                                is_system_ASTM_string = "True";
+                            if (ASTM_Serial == "")
+                                ASTM_Serial = "Not Activated";
+                            if (is_system_ASTM_string.Equals(""))
+                                ASTM_Serial = "";
+                            //ASTM_Columns = CheckIfASTM(ASTM_Licenses_Folder_Path, SerialNamber, count_drone_type);
+
+                            Mavic_ID_Customers.Add(SerialNamber);
+                            Mavic_FullPathList.Add(FullPath);
+
+                            //You'll remove a note if you'd like to investigate a specific customer
+                            /*if (SerialNamber== "002C00343037510B32363832") 
+                            { }*/
+
+                            List<string> y = new List<string>(); // Stores the date and the time for each flight
+                            List<string> y1 = new List<string>(); // Stores the full to the logs
+                            DirectoryInfo directoryInfo = new DirectoryInfo(Mavic_CustomersPath[i][k]);
+                            var results = directoryInfo.GetFiles("LOG*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList(); // Store the logs inside the folder
+                            for (int s = 0; s < results.Count; s++)
+                            {
+                                y1.Add(results[s].FullName.ToString());
+                                y.Add(results[s].Directory.Name.ToString());
+                            }
+                            string[] Logs = y1.ToArray();
+                            string[] DatesLOGs = y.ToArray();
+
+                            string TotalLogs = Logs.Length.ToString();
+                            Mavic_LogCountPerCustomer.Add(TotalLogs);
+                            string[] dateLOGs = DatesLOGs;
+                            if (DatesLOGs.Length == 0)
+                            {
+                                string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, Mavic_Model, "unknown", "unknown", "unknown", "unknown", "unknown", "0", "0", "", "0", "0" };
+                                Mavic_SerialNumberPath.Add(Mavic_CusINFO.FullName);
+                                Mavic_CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
+                                continue;
+                            }
+                            NumberFlights = 0; BadLog = 0;
+                            for (int o = 0; o < Logs.Length; o++)
+                            {
+                                long length = new System.IO.FileInfo(Logs[o]).Length;
+                                if (length > 100000)
+                                {
+                                    if (BarometerAVG(Logs[o]) >= 3)
+                                    {
+                                        NumberFlights++;//Number of flights
+                                        string TextLog = LoadCsvFile(Logs[o]);
+                                        if (CheckForFaultyLogs(Logs[o], 150, 8) && !TextLog.Contains("!SWITCHED PYRO on!"))
+                                        {
+                                            BadLog++;
+                                        }
+                                    }
+                                }
+                            }
+                            for (int k1 = 0; k1 < DatesLOGs.Length; k1++)
+                            {
+                                dateLOGs[k1] = new DirectoryInfo(DatesLOGs[k1]).Name;
+                                dateLOGs[k1] = DatesLOGs[k1].Split('_').First();
+                            }
+                            string DateFirst = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
+                            string DateLast = dateLOGs[DatesLOGs.Length - 1].Replace('-', '/'); //6. Date of last connection
+                                                                                                //DateFirst = DateFirst.Remove('0');
+                            if (DateLast.Substring(0, 1).Contains("0"))
+                                DateLast = DateLast.Remove(0, 1);
+
+
+                            string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog = "";
+                            TrigCount = 0;
+                            for (int k1 = Logs.Length; k1 > 0; k1--)
+                            {
+                                TextFromLog = LoadCsvFile(Logs[k1 - 1]);
+                                if (CheckPyroTrigLog(TextFromLog, Logs[k1 - 1].ToString()))
+                                    PyroOnCount++;
+                                if (TextFromLog.Contains("!Application................: Start") && TextFromLog.Contains("Country:") && !SMAtextOK)
+                                {
+                                    SMAtextOK = true;
+                                    TextFromLogSelect = TextFromLog;
+                                }
+                                if (TextFromLog.Contains("!Version....................:") && FWBool && !SMAtextOK)
+                                {
+                                    TextWithFirmwareVer = TextFromLog;
+                                    FWBool = false;
+                                    continue;
+                                }
+                            }
+                            if (!FWBool && !SMAtextOK)
+                                TextFromLogSelect = TextWithFirmwareVer;
+                            if (FWBool && !SMAtextOK)
+                                TextFromLogSelect = TextFromLog;
+                            int cityIndexStart = TextFromLogSelect.IndexOf("city:");
+                            int cityIndexEnd = TextFromLogSelect.IndexOf("Mavic");
+                            if ((cityIndexEnd == -1) || (cityIndexStart == -1))
+                            {
+                                City = "unknown";
+                                Country = "unknown";
+                            }
+                            else
+                            {
+                                City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
+                                Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
+                            }
+                            //if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))||(cityIndexEnd==-1)||(cityIndexStart==-1)|| (cityIndexEnd.Equals("")))
+                            //{
+                            //   City = "unknown";
+                            //    Country = "unknown";
+                            //}
+                            //else
+                            //{
+                            //    City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
+                            //   Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
+                            //}
+                            int VerIndex = TextFromLogSelect.IndexOf("SmartAir Nano");
+                            Firmware = TextFromLogSelect.Substring(VerIndex + 14, 4);
+                            try
+                            {
+                                double FW_Numb = Convert.ToDouble(Firmware);
+                                try
+                                {
+                                    if (FW_Numb >= 1.25)
+                                    {
+                                        int TrigCountStartIndex = TextFromLogSelect.IndexOf("!Trigger count........[FCNT]:");//29
+                                        string TrigCountTemp = TextFromLogSelect.Substring(TrigCountStartIndex + 30, TextFromLogSelect.Length - TrigCountStartIndex - 30);
+                                        int TrigCountStopIndex = TrigCountTemp.IndexOf("\n");
+                                        string TrigCountstr = (TrigCountTemp.Substring(0, TrigCountStopIndex));
+                                        TrigCount = Convert.ToInt32(TrigCountstr);
+                                        if ((TrigCount > 0) && (PyroOnCount > 0))
+                                        {
+                                            int TrigReasonStartIndex = TextFromLogSelect.IndexOf("!Trigger reason.......[FRSN]:");//29
+                                            string TrigReasonTemp = TextFromLogSelect.Substring(TrigReasonStartIndex + 30, TextFromLogSelect.Length - TrigReasonStartIndex - 30);
+                                            int TrigReasonStopIndex = TrigReasonTemp.IndexOf("\n");
+                                            TrigReason = TrigReasonTemp.Substring(0, TrigReasonStopIndex);
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+                            catch { Firmware = "unknown"; }
+                            string[] ExcelRow = { (Numb).ToString(), SerialNamber, Mavic_Model, Firmware,
+                                                    Country, City, DateFirst, DateLast,TotalLogs, PyroOnCount.ToString(),TrigReason,
+                                                    NumberFlights.ToString(),BadLog.ToString(),ASTM_Serial };//need to build counter from logs
+                            Mavic_CustomersSummary.Add(ExcelRow.ToList()); // Add the new row to the excel table
+                            Mavic_SerialNumberPath.Add(Mavic_CusINFO.FullName);
+                        }
+                    }
                 }
-            }
-            Numb = 0;
-            for (int i = 0; i < CustomersPath.Count; i++)
-            {
-                int NumberFlights = 0, BadLog=0;
-                string Firmware;
-                string City = "";
-                string Country = "";
-                string PlatformType = new DirectoryInfo(System.IO.Path.GetDirectoryName(CustomersPath[i][0])).Name;//7. name phantom type
-                string[] xx = Directory.EnumerateDirectories(PathSystemsName + PlatformType, "*", SearchOption.TopDirectoryOnly).ToArray();
-                for (int k = 0; k < CustomersPath[i].Count; k++)
+                else if(count_drone_type == 0)
                 {
-                    string TrigReason = "";
-                    int PyroOnCount = 0;
-                    FWBool = true;
-                    SMAtextOK = false;
-                    Numb++;
-                    var CusINFO = new DirectoryInfo(xx[k]);
-                    string FullPath = CusINFO.Parent.FullName;
-                    string SerialNamber = CusINFO.Name; // 2.SerialNumber
-                    ID_Customers.Add(SerialNamber);
-                    FullPathList.Add(FullPath);
-
-                    //You'll remove a note if you'd like to investigate a specific customer
-                    /*if (SerialNamber== "002C00343037510B32363832") 
-                    { }*/
-
-                    List<string> y = new List<string>();
-                    List<string> y1 = new List<string>();
-                    DirectoryInfo directoryInfo = new DirectoryInfo(CustomersPath[i][k]);
-                    var results = directoryInfo.GetFiles("LOG*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList();
-                    for (int s = 0; s < results.Count; s++)
-                    {
-                        y1.Add(results[s].FullName.ToString());
-                        y.Add(results[s].Directory.Name.ToString());
-                    }
-                    string[] Logs = y1.ToArray();
-                    string[] DatesLOGs = y.ToArray();
-
-                    string TotalLogs = Logs.Length.ToString();
-                    LogCountPerCustomer.Add(TotalLogs);
-                    string[] dateLOGs = DatesLOGs;
-                    if (DatesLOGs.Length == 0)
-                    {
-                        string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "unknown", "unknown", "0", "0", "", "0", "0" };
-                        SerialNumberPath.Add(CusINFO.FullName);
-                        CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
-                        continue;
-                    }
-                    NumberFlights = 0; BadLog = 0;
-                    for (int o = 0; o < Logs.Length; o++)
-                    {
-                        long length = new System.IO.FileInfo(Logs[o]).Length;
-                        if (length>100000)
+                    foreach (string dir in dirsSystemsTypes) // This loop counts the number of systems based on the number of unempty folders in each phatom type 
+                    {                                        // The number of systems will be stored in the CusomerPath array
+                        if (System.IO.Directory.GetDirectories(dir).Length != 0)
                         {
-                            if (BarometerAVG(Logs[o]) >= 3)
+                            temp.AddRange(Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly));
+                            string[] tempstr = temp.ToArray();
+                            CountCustomers = CountCustomers + tempstr.Length;
+                            CustomersPath.Insert(q, tempstr.ToList());
+                            q++;
+                            temp.Clear();
+                        }
+                    }
+                    Numb = 0;
+                    for (int i = 0; i < CustomersPath.Count; i++)
+                    {
+                        int NumberFlights = 0, BadLog = 0;
+                        string Firmware;
+                        string City = "";
+                        string Country = "";
+                        List<List<string>> ASTM_Columns = new List<List<string>>();
+                        string ASTM_Serial = "";
+                        Boolean is_system_ASTM = false;
+                        string PlatformType = new DirectoryInfo(System.IO.Path.GetDirectoryName(CustomersPath[i][0])).Name;//7. name phantom type
+                        string[] xx = Directory.EnumerateDirectories(PathSystemsName + PlatformType, "*", SearchOption.TopDirectoryOnly).ToArray(); // Store the path to all the logs in the folder
+
+                        for (int k = 0; k < CustomersPath[i].Count; k++) // This loop iterates over all of the folders inside the drone type folder
+                        {
+
+                            string TrigReason = "";
+                            int PyroOnCount = 0;
+                            FWBool = true;
+                            SMAtextOK = false;
+                            Numb++;
+                            var CusINFO = new DirectoryInfo(xx[k]);
+                            string FullPath = CusINFO.Parent.FullName;
+                            string SerialNamber = CusINFO.Name; // 2.SerialNumber
+                            string is_system_ASTM_string = "";
+                            is_system_ASTM = Check_if_this_system_is_ASTM(Phantom_ASTM_Licenses_Folder_Path, SerialNamber);
+                            ASTM_Serial = Is_ASTM_system_activated(Phantom_ASTM_Licenses_Folder_Path, SerialNamber);
+                            if (is_system_ASTM == true)
+                                is_system_ASTM_string = "True";
+                            if (ASTM_Serial == "")
+                                ASTM_Serial = "Not Activated";
+                            if (is_system_ASTM_string.Equals(""))
+                                ASTM_Serial = "";
+                            ID_Customers.Add(SerialNamber);
+                            FullPathList.Add(FullPath);                           
+
+                            //You'll remove a note if you'd like to investigate a specific customer
+                            /*if (SerialNamber== "002C00343037510B32363832") 
+                            { }*/
+
+                            List<string> y = new List<string>(); // Stores the date and the time for each flight
+                            List<string> y1 = new List<string>(); // Stores the full to the logs
+                            DirectoryInfo directoryInfo = new DirectoryInfo(CustomersPath[i][k]);
+                            var results = directoryInfo.GetFiles("LOG*", SearchOption.AllDirectories).OrderBy(t => t.LastWriteTime).ToList(); // Store the logs inside the folder
+                            for (int s = 0; s < results.Count; s++)
                             {
-                                NumberFlights++;//Number of flights
-                                string TextLog = LoadCsvFile(Logs[o]);
-                                if (CheckForFaultyLogs(Logs[o],150,8)&&!TextLog.Contains("!SWITCHED PYRO on!"))
+                                y1.Add(results[s].FullName.ToString());
+                                y.Add(results[s].Directory.Name.ToString());
+                            }
+                            string[] Logs = y1.ToArray();
+                            string[] DatesLOGs = y.ToArray();
+
+                            string TotalLogs = Logs.Length.ToString();
+                            LogCountPerCustomer.Add(TotalLogs);
+                            string[] dateLOGs = DatesLOGs;
+                            if (DatesLOGs.Length == 0)
+                            {
+                                string[] ExcelRowUNKNOWN = { (Numb).ToString(), SerialNamber, PlatformType, "unknown", "unknown", "unknown", "unknown", "unknown", "0", "0", "", "0", "0" };
+                                SerialNumberPath.Add(CusINFO.FullName);
+                                CustomersSummary.Add(ExcelRowUNKNOWN.ToList());
+                                continue;
+                            }
+                            NumberFlights = 0; BadLog = 0;
+                            for (int o = 0; o < Logs.Length; o++)
+                            {
+                                long length = new System.IO.FileInfo(Logs[o]).Length;
+                                if (length > 100000)
                                 {
-                                    BadLog++;
+                                    if (BarometerAVG(Logs[o]) >= 3)
+                                    {
+                                        NumberFlights++;//Number of flights
+                                        string TextLog = LoadCsvFile(Logs[o]);
+                                        if (CheckForFaultyLogs(Logs[o], 150, 8) && !TextLog.Contains("!SWITCHED PYRO on!"))
+                                        {
+                                            BadLog++;
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
-                    for (int k1 = 0; k1 < DatesLOGs.Length; k1++)
-                    {
-                        dateLOGs[k1] = new DirectoryInfo(DatesLOGs[k1]).Name;
-                        dateLOGs[k1] = DatesLOGs[k1].Split('_').First();
-                    }
-                    string DateFirst = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
-                    string DateLast = dateLOGs[DatesLOGs.Length - 1].Replace('-', '/'); //6. Date of first connection
-                    //DateFirst = DateFirst.Remove('0');
-                    if (DateLast.Substring(0,1).Contains("0"))
-                        DateLast = DateLast.Remove(0,1);
-                    
-
-                    string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog="";
-                    TrigCount = 0;
-                    for (int k1 = Logs.Length; k1 > 0; k1--)
-                    {
-                        TextFromLog = LoadCsvFile(Logs[k1 - 1]);
-                        if (CheckPyroTrigLog(TextFromLog, Logs[k1 - 1].ToString()))
-                            PyroOnCount++;
-                        if (TextFromLog.Contains("!Application................: Start") && TextFromLog.Contains("Country:")&&!SMAtextOK)
-                        {
-                            SMAtextOK = true;
-                            TextFromLogSelect = TextFromLog;
-                        }
-                        if (TextFromLog.Contains("!Version....................:") && FWBool && !SMAtextOK)
-                        {
-                            TextWithFirmwareVer = TextFromLog;
-                            FWBool = false;
-                            continue;
-                        }
-                    }
-                    if (!FWBool && !SMAtextOK)
-                        TextFromLogSelect = TextWithFirmwareVer;
-                    if(FWBool&&!SMAtextOK)
-                        TextFromLogSelect = TextFromLog;
-                    int cityIndexStart = TextFromLogSelect.IndexOf("city:");
-                    int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
-                    if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))||(cityIndexEnd==-1)||(cityIndexStart==-1))
-                    {
-                        City = "unknown";
-                        Country = "unknown";
-                    }
-                    else
-                    {
-                        City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
-                        Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
-                    }
-                    int VerIndex = TextFromLogSelect.IndexOf("SmartAir Nano");
-                    Firmware = TextFromLogSelect.Substring(VerIndex + 14, 4);
-                    try
-                    {
-                        double FW_Numb = Convert.ToDouble(Firmware);
-                        try
-                        {
-                            if (FW_Numb >= 1.25)
+                            for (int k1 = 0; k1 < DatesLOGs.Length; k1++)
                             {
-                                int TrigCountStartIndex = TextFromLogSelect.IndexOf("!Trigger count........[FCNT]:");//29
-                                string TrigCountTemp = TextFromLogSelect.Substring(TrigCountStartIndex + 30, TextFromLogSelect.Length - TrigCountStartIndex - 30);
-                                int TrigCountStopIndex = TrigCountTemp.IndexOf("\n");
-                                string TrigCountstr = (TrigCountTemp.Substring(0, TrigCountStopIndex));
-                                TrigCount = Convert.ToInt32(TrigCountstr);
-                                if ((TrigCount > 0)&&(PyroOnCount>0))
+                                dateLOGs[k1] = new DirectoryInfo(DatesLOGs[k1]).Name;
+                                dateLOGs[k1] = DatesLOGs[k1].Split('_').First();
+                            }
+                            string DateFirst = dateLOGs[0].Replace('-', '/');// 5. Date of first connection
+                            string DateLast = dateLOGs[DatesLOGs.Length - 1].Replace('-', '/'); //6. Date of last connection
+                                                                                                //DateFirst = DateFirst.Remove('0');
+                            if (DateLast.Substring(0, 1).Contains("0"))
+                                DateLast = DateLast.Remove(0, 1);
+
+
+                            string TextFromLogSelect = "", TextWithFirmwareVer = "", TextFromLog = "";
+                            TrigCount = 0;
+                            for (int k1 = Logs.Length; k1 > 0; k1--)
+                            {
+                                TextFromLog = LoadCsvFile(Logs[k1 - 1]);
+                                if (CheckPyroTrigLog(TextFromLog, Logs[k1 - 1].ToString()))
+                                    PyroOnCount++;
+                                if (TextFromLog.Contains("!Application................: Start") && TextFromLog.Contains("Country:") && !SMAtextOK)
                                 {
-                                    int TrigReasonStartIndex = TextFromLogSelect.IndexOf("!Trigger reason.......[FRSN]:");//29
-                                    string TrigReasonTemp = TextFromLogSelect.Substring(TrigReasonStartIndex + 30, TextFromLogSelect.Length - TrigReasonStartIndex - 30);
-                                    int TrigReasonStopIndex = TrigReasonTemp.IndexOf("\n");
-                                    TrigReason = TrigReasonTemp.Substring(0, TrigReasonStopIndex);
+                                    SMAtextOK = true;
+                                    TextFromLogSelect = TextFromLog;
+                                }
+                                if (TextFromLog.Contains("!Version....................:") && FWBool && !SMAtextOK)
+                                {
+                                    TextWithFirmwareVer = TextFromLog;
+                                    FWBool = false;
+                                    continue;
                                 }
                             }
-                        }
-                        catch {  }
-                    }
-                    catch { Firmware = "unknown"; }
-                    string[] ExcelRow = { (Numb).ToString(), SerialNamber, PlatformType, Firmware,
+                            if (!FWBool && !SMAtextOK)
+                                TextFromLogSelect = TextWithFirmwareVer;
+                            if (FWBool && !SMAtextOK)
+                                TextFromLogSelect = TextFromLog;
+                            int cityIndexStart = TextFromLogSelect.IndexOf("city:");
+                            int cityIndexEnd = TextFromLogSelect.IndexOf("Phantom");
+                            if ((cityIndexEnd == -1) || (cityIndexStart == -1))
+                            {
+                                City = "unknown";
+                                Country = "unknown";
+                            }
+                            else
+                            {
+                                City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
+                                Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
+                            }
+                            //if ((TextFromLogSelect.Substring(0, cityIndexEnd - 1).Contains("null"))||(cityIndexEnd==-1)||(cityIndexStart==-1)|| (cityIndexEnd.Equals("")))
+                            //{
+                            //   City = "unknown";
+                            //    Country = "unknown";
+                            //}
+                            //else
+                            //{
+                            //    City = TextFromLogSelect.Substring(cityIndexStart + 6, cityIndexEnd - cityIndexStart - 7);// 3. city
+                            //   Country = TextFromLogSelect.Substring(9, cityIndexStart - 11);// 3. city
+                            //}
+                            int VerIndex = TextFromLogSelect.IndexOf("SmartAir Nano");
+                            Firmware = TextFromLogSelect.Substring(VerIndex + 14, 4);
+                            try
+                            {
+                                double FW_Numb = Convert.ToDouble(Firmware);
+                                try
+                                {
+                                    if (FW_Numb >= 1.25)
+                                    {
+                                        int TrigCountStartIndex = TextFromLogSelect.IndexOf("!Trigger count........[FCNT]:");//29
+                                        string TrigCountTemp = TextFromLogSelect.Substring(TrigCountStartIndex + 30, TextFromLogSelect.Length - TrigCountStartIndex - 30);
+                                        int TrigCountStopIndex = TrigCountTemp.IndexOf("\n");
+                                        string TrigCountstr = (TrigCountTemp.Substring(0, TrigCountStopIndex));
+                                        TrigCount = Convert.ToInt32(TrigCountstr);
+                                        if ((TrigCount > 0) && (PyroOnCount > 0))
+                                        {
+                                            int TrigReasonStartIndex = TextFromLogSelect.IndexOf("!Trigger reason.......[FRSN]:");//29
+                                            string TrigReasonTemp = TextFromLogSelect.Substring(TrigReasonStartIndex + 30, TextFromLogSelect.Length - TrigReasonStartIndex - 30);
+                                            int TrigReasonStopIndex = TrigReasonTemp.IndexOf("\n");
+                                            TrigReason = TrigReasonTemp.Substring(0, TrigReasonStopIndex);
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+                            catch { Firmware = "unknown"; }
+                            string[] ExcelRow = { (Numb).ToString(), SerialNamber, PlatformType, Firmware,
                         Country, City, DateFirst, DateLast,TotalLogs, PyroOnCount.ToString(),TrigReason,
-                        NumberFlights.ToString(),BadLog.ToString() };//need to build counter from logs
-                    CustomersSummary.Add(ExcelRow.ToList());
-                    SerialNumberPath.Add(CusINFO.FullName);
+                        NumberFlights.ToString(),BadLog.ToString(),ASTM_Serial};//need to build counter from logs
+                            CustomersSummary.Add(ExcelRow.ToList()); // Add the new row to the excel table
+                            SerialNumberPath.Add(CusINFO.FullName);
+                        }
+                    }               
                 }
             }
             string[] CustomerPaths = SerialNumberPath.ToArray();
+            string[] Mavic_CustomerPaths = Mavic_SerialNumberPath.ToArray();
 
             Microsoft.Office.Interop.Excel.Application excel = new Microsoft.Office.Interop.Excel.Application();
             Microsoft.Office.Interop.Excel.Workbook sheet1 = excel.Workbooks.Open(SourcePath);
-            Microsoft.Office.Interop.Excel.Worksheet x = excel.ActiveSheet as Microsoft.Office.Interop.Excel.Worksheet;
+            Microsoft.Office.Interop.Excel._Worksheet x = null;
+            Microsoft.Office.Interop.Excel._Worksheet Mavic_Sheet = null;
+
+            x = (Microsoft.Office.Interop.Excel._Worksheet)sheet1.Sheets[1];
+            sheet1.Sheets[1].Activate();
+
+            //Mavic_Sheet = sheet1.Sheets.Add(After: sheet1.Sheets[sheet1.Sheets.Count]);
+            //Mavic_Sheet.Name = "Mavic";
+
             try
             {
                 int i1 = 0;
                 x.Cells.ClearContents();
+
                 foreach (string Header in HeadersExcel)
                 {
-                    i1++;
+                    i1++;                
                     x.Cells[1, i1] = Header;
                 }
                 for (int i = 0; i < CustomersSummary.Count; i++)
@@ -1241,9 +1588,7 @@ namespace CustomersBox
                             r = x.Cells[i + 2, colCount];
                             x.Hyperlinks.Add(r, CustomerPaths[i], Type.Missing, str);
                         }
-                        
                     }
-
                 }
             }
             catch (Exception exception)
@@ -1254,9 +1599,53 @@ namespace CustomersBox
             {
                 x.Columns.AutoFit();
                 //((Microsoft.Office.Interop.Excel.Range)x.Cells[x.Rows.Count, x.Columns.Count]).AutoFit();
+            }
+
+            Mavic_Sheet = (Microsoft.Office.Interop.Excel._Worksheet)sheet1.Sheets[2];
+            sheet1.Sheets[2].Activate();
+
+            try
+            {
+                int i2 = 0;
+                Mavic_Sheet.Cells.ClearContents();
+
+                foreach (string Header in HeadersExcel)
+                {
+                    i2++;
+                    Mavic_Sheet.Cells[1, i2] = Header;
+                }
+                for (int j = 0; j < Mavic_CustomersSummary.Count; j++)
+                {
+                    int colCount = 0;
+                    foreach (string str in Mavic_CustomersSummary[j])
+                    {
+                        colCount++;
+                        if (colCount == 8)
+                        {
+                            Mavic_Sheet.Cells[j + 2, colCount - 1].NumberFormat = "DD/MM/YY";
+                        }
+                        Mavic_Sheet.Cells[j + 2, colCount] = str;
+                        if (colCount == 2)
+                        {
+                            Excel.Range ra;
+                            ra = Mavic_Sheet.Cells[j + 2, colCount];
+                            Mavic_Sheet.Hyperlinks.Add(ra, Mavic_CustomerPaths[j], Type.Missing, str);
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine("There was a PROBLEM saving file!");
+            }
+            //            finally
+            //           {
+                Mavic_Sheet.Columns.AutoFit();
+                //x.Columns.AutoFit();
+                //((Microsoft.Office.Interop.Excel.Range)x.Cells[x.Rows.Count, x.Columns.Count]).AutoFit();
                 sheet1.Save();
-                //sheet1.Close();
-                excel.Quit();
+                sheet1.Close();
+                //excel.Quit();
                 if (excel != null)
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(excel);
                 if (sheet1 != null)
@@ -1266,10 +1655,13 @@ namespace CustomersBox
                 sheet1 = null;
                 // Force garbage collector cleaning
                 GC.Collect();
-            }
+//            }
             UpdateBackupFile(BackupPath, ID_Customers.ToArray(), LogCountPerCustomer.ToArray(),FullPathList.ToArray(),PhantomPath);
-            EditExcel(SourcePath);
-            string CustomersCount = (CustomerPaths.Length).ToString();//number of customers
+            UpdateBackupFile(Mavic_BackupPath, Mavic_ID_Customers.ToArray(), Mavic_LogCountPerCustomer.ToArray(), Mavic_FullPathList.ToArray(), MavicSystemsName);
+            EditExcel(x, SourcePath, 1);
+            EditExcel(Mavic_Sheet, SourcePath, 2);
+            int CustomersCount_int = CustomerPaths.Length + Mavic_CustomerPaths.Length;
+            string CustomersCount = (CustomersCount_int).ToString();//number of customers
             Console.WriteLine(IsraelClock() + " Excel file SA2 customer summary was updated, at:\n" + SourcePath + "\n");
             return CustomersCount;
         }
@@ -1494,6 +1886,164 @@ namespace CustomersBox
             SmtpServer.EnableSsl = true;
 
             SmtpServer.Send(mail);
+        }
+        static Boolean Check_if_this_system_is_ASTM (string Folder_Path, string serial_number)
+        {
+            Boolean flag = false;
+            DirectoryInfo d = new DirectoryInfo(Folder_Path);
+            FileInfo[] Files = d.GetFiles("*.json"); //Getting JSON files
+            foreach (FileInfo file in Files)
+            {
+                if (file.Name.Contains(serial_number)) { 
+                    flag = true;
+                    break;
+                }
+            }
+            return flag;
+        }
+        static string Is_ASTM_system_activated (string Folder_Path, string serial_number)
+        {
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+
+            DirectoryInfo d = new DirectoryInfo(Folder_Path);
+            FileInfo[] Files = d.GetFiles("*.json"); //Getting JSON files
+            foreach (FileInfo file in Files)
+            {
+                if (file.Name.Contains("PRZ"))
+                {
+                    dict = Json_to_dict(file.FullName);
+                    if (dict.Values.Contains(serial_number))
+                    {
+                        return file.Name.Substring(0,file.Name.Length-5);
+                    }
+                }
+            }
+            return "";
+        }
+        /*static List<List<string>> Check_If_ASTM (string Folder_Path)
+        {
+            int index_PRZ = 0;
+            string ASTM_license_number = "";
+            List<List<string>> key_value = new List<List<string>>();
+            List<string> files_path = new List<string>();
+            files_path = get_files_from_folder(Folder_Path);
+            foreach (string file in files_path)
+            {             
+                if(file.Contains("PRZ")) // Checks if the file's name conains "PRZ"
+                {
+
+                    // I need to think again about he process
+
+                    // The right process is:
+                    // First - create a list that contains KeyPair for each ASTM system by read all the files that start with "PRZ"
+                    // After that, check for each system that will be added to the final table, if it's serial number appear in the KeyPair list
+                    // If so, I need to store the file name and and write it in the table in the "ASTM Licenses" column
+
+                    KeyValuePair<string, string> temp_key_value = json_to_dict(file).First();
+                    if (temp_key_value.Key.Contains("false"))
+                        continue;
+                    KeyValuePair<string, string> result = new KeyValuePair<string, string>();
+                    
+                    index_PRZ = file.IndexOf("PRZ");
+                    ASTM_license_number = file.Substring(index_PRZ);
+                    //key_value.Add(ASTM_license_number,temp_key_value.Value);
+                    //result = (index_PRZ,)
+                }
+            }
+            return key_value;
+        }
+        */
+        /*static KeyValuePair<string, string> CheckIfASTM (string Folder_path, string Serial_Number, int drone_type)
+        {
+            /* CheckIfASTM function: 
+           *** background:
+           *** input:   "Folder_path"   : The path to all the ASTM Licenses
+           *            "Serial_Number" : The system's serial number 
+           *** Actions: The function checks whether the system is an ASTM by cheking if the system's serial number appears in the "ASTM Licenses" folder.
+           *** output: Boolean
+           */
+
+            // From the "UpdateExcelFiles" we get the system's serial number
+            // We need to check whether this serial number appears in one of the files in the "ASTM Licenses" folder, in the value of the dictionary
+            // So we need to get the value from each dictionary and check whether it equals to the serial number
+            // If yes, return true, otherwise, false
+            /*
+            if (drone_type == 0)
+                Folder_path += "\\Phantom";
+            else
+                Folder_path += "\\Mavic";
+            KeyValuePair<string, string> key_value = new KeyValuePair<string, string>();
+            Dictionary<string, string> final_dict = new Dictionary<string, string>();
+            string value = "";
+            int index = Folder_path.IndexOf("\\");
+            string dir_Folder_Path = Folder_path.Substring(0, index);
+            Boolean flag = false;
+            List<string> files_path = new List<string>();
+            files_path = get_files_from_folder(Folder_path);
+            foreach (string file in files_path)
+            {
+                Dictionary<string, string> dict_ = new Dictionary<string, string>();
+                dict_ = json_to_dict(file);
+                if (dict_.Count == 0)
+                    continue;
+                value = dict_.Values.ElementAt(0);
+                if (value.Equals(Serial_Number))
+                {
+                    flag = true;
+                    key_value = dict_.FirstOrDefault();
+                    final_dict.Add(flag.ToString(), key_value.Value);
+                    break;
+                }
+            }
+            //Dictionary<string, string> dict = new Dictionary<string, string>();
+            //dict = json_to_dict(JSON_path);
+            //string value = dict.Values.ElementAt(0); // Get the value from the JSON 
+            return key_value;
+        }
+        */  
+        static List<string> get_files_from_folder(string folder_path)
+        {
+            List<string> files_path = new List<string>();
+            DirectoryInfo d = new DirectoryInfo(folder_path);
+            FileInfo[] Files = d.GetFiles("*.json"); //Getting JSON files
+            string str = "";
+            foreach (FileInfo file in Files)
+            {
+                str = folder_path + "\\" + file.Name;
+                files_path.Add(str);
+            }
+            return files_path;
+        }
+        static Dictionary<string, string> Json_to_dict(String path)
+        {
+            /* json_to_string function: 
+            *** background:
+            *** input: "path", path to file
+            *** Actions: The funcion crates a dicionary from a json file
+            *** output: Dictionary
+            */
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            String s = "", key = "", value = "";
+            int start_key_index = 0, end_key_index = 0, start_value_index = 0, end_value_index = 0;
+            using (StreamReader sr = File.OpenText(path))
+            {
+                var json = sr.ReadLine();
+                if ((json.Equals("[,]")) || (json.Equals("Access to the port is denied. - ResetSmartAir")) || json.Equals("{}")) 
+                    dict.Add("false", "");                   
+                else
+                {
+                    //Console.WriteLine(json);
+                    start_key_index = json.IndexOf('"');
+                    end_key_index = json.IndexOf('"', start_key_index + 1);
+                    start_value_index = json.IndexOf('"', end_key_index + 1);
+                    end_value_index = json.IndexOf('"', start_value_index + 1);
+                    value = json.Substring(start_value_index + 1, end_value_index - start_value_index - 1);
+                    key = json.Substring(start_key_index + 1, end_key_index - start_key_index - 1);
+                    dict.Add(key, value);
+                }
+            }           
+            //Console.WriteLine(dict.ElementAt(0));
+            return dict;
         }
     }
 }
